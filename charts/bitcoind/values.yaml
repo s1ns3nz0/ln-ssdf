@@ -4,6 +4,8 @@ image:
   digest: sha256:2a335ea0e77106fc8768cade374808485a43825a6b4a17e85dd36d4acd931b22
 auth:
   rpcUsername: regtest
+  # The RPC Secret is created by the runtime bootstrap, not from Git values.
+  manageRpcSecret: false
   rpcPassword: ""
 storage:
   size: 5Gi

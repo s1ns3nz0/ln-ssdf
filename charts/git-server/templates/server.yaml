@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: git-server-data }
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: {{ .Values.storage.size | quote }} } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: git-server }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: git-server } }
+  template:
+    metadata: { labels: { app: git-server } }
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: git-daemon
+          image: {{ .Values.image | quote }}
+          command: [git, daemon, --reuseaddr, --base-path=/srv/git, --export-all, --enable=receive-pack, --informative-errors, --verbose, /srv/git]
+          ports: [{ name: git, containerPort: 9418 }]
+          readinessProbe: { tcpSocket: { port: git }, initialDelaySeconds: 2 }
+          volumeMounts: [{ name: data, mountPath: /srv/git }]
+      volumes: [{ name: data, persistentVolumeClaim: { claimName: git-server-data } }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: git-server }
+spec:
+  selector: { app: git-server }
+  ports: [{ name: git, port: 9418, targetPort: git }]

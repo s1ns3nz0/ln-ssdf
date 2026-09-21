@@ -26,18 +26,19 @@ password_file="$(mktemp)"
 chmod 600 "$password_file"
 trap 'rm -f "$password_file"' EXIT
 
-# Retain an existing local admin password on reruns; otherwise generate it only
-# in a mode-0600 temporary file. It is never printed or placed in the repository.
-if k -n "$namespace" get secret grafana-admin >/dev/null 2>&1; then
-  k -n "$namespace" get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d > "$password_file"
-else
+# Generate a local-only administrator password if bootstrap has not made one.
+# Existing Secret data is never read back into the Helm release or Git values.
+if ! k -n "$namespace" get secret grafana-admin >/dev/null 2>&1; then
   openssl rand -hex 32 > "$password_file"
+  k -n "$namespace" create secret generic grafana-admin \
+    --from-file=admin-password="$password_file" \
+    --dry-run=client -o yaml | k apply -f - >/dev/null
 fi
 
 k -n "$namespace" wait --for=condition=Ready vaultdynamicsecret/postgres-exporter-credential --timeout=180s
 helm upgrade --install observability "$repo_root/charts/observability" \
   --kube-context "$context" --namespace "$namespace" \
-  --set-file grafana.adminPassword="$password_file"
+  --set grafana.manageAdminSecret=false
 
 for deployment in postgres-exporter prometheus grafana; do
   k -n "$namespace" rollout status "deployment/$deployment" --timeout=300s

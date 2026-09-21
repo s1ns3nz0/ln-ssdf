@@ -8,7 +8,8 @@ image:
 
 auth:
   username: postgres
-  # Required at install time. Never commit this value.
+  # The bootstrap Secret is an explicit runtime input, never Git-managed.
+  manageBootstrapSecret: false
   bootstrapPassword: ""
 
 storage:

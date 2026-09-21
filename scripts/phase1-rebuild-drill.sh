@@ -70,9 +70,12 @@ kind delete cluster --name ln-ssdf-phase0
 kind create cluster --config "$repo_root/local/kind-config.yaml" --wait 120s
 
 bootstrap_password="$(openssl rand -base64 32)"
+k create namespace ssdf-system
+k -n ssdf-system create secret generic ssdf-postgres-bootstrap \
+  --from-literal=POSTGRES_PASSWORD="$bootstrap_password" \
+  --dry-run=client -o yaml | k apply -f - >/dev/null
 helm upgrade --install ssdf "$repo_root/charts/postgres" \
-  --kube-context "$context" --namespace ssdf-system --create-namespace \
-  --set-string auth.bootstrapPassword="$bootstrap_password"
+  --kube-context "$context" --namespace ssdf-system
 unset bootstrap_password
 k -n ssdf-system rollout status statefulset/ssdf-postgres --timeout=180s
 "$repo_root/scripts/phase0-verify.sh" --context "$context"

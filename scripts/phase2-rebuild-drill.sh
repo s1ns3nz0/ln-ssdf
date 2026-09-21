@@ -17,8 +17,11 @@ for command in base64 helm jq kubectl openssl; do command -v "$command" >/dev/nu
 
 "$repo_root/scripts/phase1-rebuild-drill.sh" --context "$context" --state-dir "$state_dir"
 rpc_password="$(openssl rand -base64 32)"
+kubectl --context "$context" -n ssdf-system create secret generic bitcoind-rpc \
+  --from-literal=rpc-password="$rpc_password" \
+  --dry-run=client -o yaml | kubectl --context "$context" apply -f - >/dev/null
 helm upgrade --install bitcoind "$repo_root/charts/bitcoind" --kube-context "$context" --namespace ssdf-system \
-  --set-string auth.rpcPassword="$rpc_password"
+  --set auth.manageRpcSecret=false
 unset rpc_password
 kubectl --context "$context" -n ssdf-system rollout status statefulset/bitcoind --timeout=180s
 "$repo_root/scripts/phase2-bootstrap.sh" --context "$context" --state-dir "$state_dir"

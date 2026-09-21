@@ -1,0 +1,50 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault-secrets-operator
+  namespace: argocd
+  annotations: { argocd.argoproj.io/sync-wave: "2" }
+spec:
+  project: default
+  source:
+    repoURL: https://helm.releases.hashicorp.com
+    chart: vault-secrets-operator
+    targetRevision: 1.5.1
+    helm:
+      values: |
+        controller:
+          manager:
+            globalTransformationOptions:
+              excludeRaw: true
+  destination: { server: https://kubernetes.default.svc, namespace: vault-system }
+  syncPolicy: { automated: { prune: false, selfHeal: true }, syncOptions: [CreateNamespace=true] }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: phase1-vso-resources
+  namespace: argocd
+  annotations: { argocd.argoproj.io/sync-wave: "3" }
+spec:
+  project: default
+  source:
+    repoURL: git://git-server.gitops-system.svc:9418/ln-ssdf.git
+    targetRevision: main
+    path: manifests/phase1
+  destination: { server: https://kubernetes.default.svc, namespace: ssdf-system }
+  syncPolicy: { automated: { prune: false, selfHeal: true }, syncOptions: [CreateNamespace=true] }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: phase2-vso-resources
+  namespace: argocd
+  annotations: { argocd.argoproj.io/sync-wave: "3" }
+spec:
+  project: default
+  source:
+    repoURL: git://git-server.gitops-system.svc:9418/ln-ssdf.git
+    targetRevision: main
+    path: manifests/phase2
+  destination: { server: https://kubernetes.default.svc, namespace: ssdf-system }
+  syncPolicy: { automated: { prune: false, selfHeal: true }, syncOptions: [CreateNamespace=true] }

@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: postgres
+  namespace: argocd
+  annotations: { argocd.argoproj.io/sync-wave: "1" }
+spec:
+  project: default
+  source:
+    repoURL: git://git-server.gitops-system.svc:9418/ln-ssdf.git
+    targetRevision: main
+    path: charts/postgres
+    helm: { releaseName: ssdf }
+  destination: { server: https://kubernetes.default.svc, namespace: ssdf-system }
+  syncPolicy: { automated: { prune: false, selfHeal: true }, syncOptions: [CreateNamespace=true] }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: bitcoind
+  namespace: argocd
+  annotations: { argocd.argoproj.io/sync-wave: "1" }
+spec:
+  project: default
+  source:
+    repoURL: git://git-server.gitops-system.svc:9418/ln-ssdf.git
+    targetRevision: main
+    path: charts/bitcoind
+    helm: { releaseName: bitcoind }
+  destination: { server: https://kubernetes.default.svc, namespace: ssdf-system }
+  syncPolicy: { automated: { prune: false, selfHeal: true }, syncOptions: [CreateNamespace=true] }

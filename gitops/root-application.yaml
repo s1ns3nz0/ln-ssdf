@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ln-ssdf-root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: git://git-server.gitops-system.svc:9418/ln-ssdf.git
+    targetRevision: main
+    path: gitops/applications
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true]

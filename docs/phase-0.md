@@ -15,10 +15,12 @@
 kind create cluster --config local/kind-config.yaml
 read -r -s -p 'Bootstrap PostgreSQL password: ' SSDF_BOOTSTRAP_PASSWORD
 printf '\n'
+kubectl --context kind-ln-ssdf-phase0 create namespace ssdf-system
+kubectl --context kind-ln-ssdf-phase0 -n ssdf-system create secret generic ssdf-postgres-bootstrap \
+  --from-literal=POSTGRES_PASSWORD="$SSDF_BOOTSTRAP_PASSWORD"
 helm upgrade --install ssdf charts/postgres \
   --kube-context kind-ln-ssdf-phase0 \
-  --namespace ssdf-system --create-namespace \
-  --set-string auth.bootstrapPassword="$SSDF_BOOTSTRAP_PASSWORD" \
+  --namespace ssdf-system \
   --wait --timeout 180s
 scripts/phase0-verify.sh --context kind-ln-ssdf-phase0
 unset SSDF_BOOTSTRAP_PASSWORD
@@ -35,10 +37,12 @@ kind delete cluster --name ln-ssdf-phase0
 kind create cluster --config local/kind-config.yaml --wait 120s
 read -r -s -p 'Bootstrap PostgreSQL password: ' SSDF_BOOTSTRAP_PASSWORD
 printf '\n'
+kubectl --context kind-ln-ssdf-phase0 create namespace ssdf-system
+kubectl --context kind-ln-ssdf-phase0 -n ssdf-system create secret generic ssdf-postgres-bootstrap \
+  --from-literal=POSTGRES_PASSWORD="$SSDF_BOOTSTRAP_PASSWORD"
 helm upgrade --install ssdf charts/postgres \
   --kube-context kind-ln-ssdf-phase0 \
-  --namespace ssdf-system --create-namespace \
-  --set-string auth.bootstrapPassword="$SSDF_BOOTSTRAP_PASSWORD" \
+  --namespace ssdf-system \
   --wait --timeout 180s
 scripts/phase0-verify.sh --context kind-ln-ssdf-phase0
 unset SSDF_BOOTSTRAP_PASSWORD

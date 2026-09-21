@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault-unsealer
+  namespace: argocd
+  annotations: { argocd.argoproj.io/sync-wave: "0" }
+spec:
+  project: default
+  source:
+    repoURL: git://git-server.gitops-system.svc:9418/ln-ssdf.git
+    targetRevision: main
+    path: charts/vault
+    helm: { releaseName: unsealer }
+  destination: { server: https://kubernetes.default.svc, namespace: vault-system }
+  syncPolicy: { automated: { prune: false, selfHeal: true }, syncOptions: [CreateNamespace=true] }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault-main
+  namespace: argocd
+  annotations: { argocd.argoproj.io/sync-wave: "0" }
+spec:
+  project: default
+  source:
+    repoURL: git://git-server.gitops-system.svc:9418/ln-ssdf.git
+    targetRevision: main
+    path: charts/vault
+    helm:
+      releaseName: main
+      values: |
+        transit:
+          enabled: true
+          address: http://unsealer-vault.vault-system.svc:8200
+          tokenSecretName: main-vault-transit
+  destination: { server: https://kubernetes.default.svc, namespace: vault-system }
+  syncPolicy: { automated: { prune: false, selfHeal: true }, syncOptions: [CreateNamespace=true] }

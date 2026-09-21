@@ -74,13 +74,18 @@ spec:
   accessModes: [ReadWriteOnce]
   resources: { requests: { storage: {{ .Values.storage.size | quote }} } }
 ---
+{{- if .Values.grafana.manageAdminSecret }}
+{{- if not .Values.grafana.adminPassword }}{{ fail "grafana.adminPassword is required when manageAdminSecret=true" }}{{ end }}
 apiVersion: v1
 kind: Secret
-metadata: { name: grafana-admin }
+metadata:
+  name: grafana-admin
+  annotations: { helm.sh/resource-policy: keep }
 type: Opaque
 stringData:
-  admin-password: {{ required "grafana.adminPassword must be supplied at install time" .Values.grafana.adminPassword | quote }}
+  admin-password: {{ .Values.grafana.adminPassword | quote }}
 ---
+{{- end }}
 apiVersion: v1
 kind: ConfigMap
 metadata: { name: grafana-provisioning }
