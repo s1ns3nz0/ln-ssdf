@@ -1,0 +1,42 @@
+name: Measure Upstream Scorecards
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 2 * * *'
+
+# This workflow only reads public upstream repositories and retains a JSON
+# measurement artifact. It neither publishes Scorecard results nor changes an
+# upstream repository.
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    name: Score ${{ matrix.repository }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        repository:
+          - lightningnetwork/lnd
+          - lightninglabs/aperture
+    steps:
+      - name: Measure OpenSSF Scorecard
+        env:
+          GITHUB_AUTH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ matrix.repository }}
+        run: |
+          mkdir -p artifacts
+          docker run --rm \
+            -e GITHUB_AUTH_TOKEN \
+            ghcr.io/ossf/scorecard@sha256:2ad2ced1cc8d080a589fac211944834c0da3dd82a4d7b0e70a642b6be76987d7 \
+            --repo "github.com/${REPOSITORY}" \
+            --format json \
+            --show-details > artifacts/scorecard.json
+      - name: Retain Scorecard measurement
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: scorecard-${{ matrix.repository == 'lightningnetwork/lnd' && 'lnd' || 'aperture' }}
+          path: artifacts/scorecard.json
+          if-no-files-found: error
