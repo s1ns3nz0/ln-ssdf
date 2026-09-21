@@ -59,6 +59,7 @@ helm upgrade --install bitcoind "$repo_root/charts/bitcoind" --kube-context "$co
   --set auth.manageRpcSecret=false
 k -n ssdf-system rollout status statefulset/bitcoind --timeout=180s
 "$repo_root/scripts/phase2-bootstrap.sh" --context "$context" --state-dir "$state_dir"
+"$repo_root/scripts/phase2-payment-drill.sh" --context "$context"
 "$repo_root/scripts/phase3-bootstrap.sh" --context "$context"
 "$repo_root/scripts/phase4-bootstrap.sh" --context "$context"
 "$repo_root/scripts/phase6-bootstrap.sh" --context "$context"
