@@ -42,7 +42,8 @@ temporary_dir="$(mktemp -d)"
 trap 'rm -rf "$temporary_dir"' EXIT
 git clone --bare "$repo_root" "$temporary_dir/ln-ssdf.git" >/dev/null
 touch "$temporary_dir/ln-ssdf.git/git-daemon-export-ok"
-git_pod="$(k -n gitops-system get pod -l app=git-server -o jsonpath='{.items[0].metadata.name}')"
+git_pod="$(k -n gitops-system get pod -l app=git-server -o jsonpath='{.items[?(@.status.phase=="Running")].metadata.name}')"
+[[ -n "$git_pod" ]] || { echo "no running git-server pod" >&2; exit 1; }
 k -n gitops-system exec "$git_pod" -- rm -rf /srv/git/ln-ssdf.git
 k -n gitops-system cp "$temporary_dir/ln-ssdf.git" "$git_pod:/srv/git/ln-ssdf.git"
 
