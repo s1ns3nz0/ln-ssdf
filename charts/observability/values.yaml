@@ -1,0 +1,10 @@
+prometheus:
+  image: prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996
+grafana:
+  image: grafana/grafana:12.0.1@sha256:06dc8d60e184705e5dc00e051a6d92342a44010d7d5e538d0a36339e85abb9b7
+  # Supplied at install time by phase3-bootstrap.sh; never commit a value here.
+  adminPassword: ""
+postgresExporter:
+  image: prometheuscommunity/postgres-exporter:v0.17.1@sha256:38606faa38c54787525fb0ff2fd6b41b4cfb75d455c1df294927c5f611699b17
+storage:
+  size: 5Gi

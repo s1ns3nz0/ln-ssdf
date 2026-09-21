@@ -1,0 +1,71 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: experiment-1-require-sbom-and-vsa
+spec:
+  validationFailureAction: Enforce
+  webhookTimeoutSeconds: 30
+  rules:
+    - name: require-signed-sbom-and-passing-vsa
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - experiment-1
+      verifyImages:
+        - imageReferences:
+            - "10.96.115.66:5000/fixtures/*"
+          required: true
+          verifyDigest: true
+          mutateDigest: false
+          useCache: false
+          imageRegistryCredentials:
+            allowInsecureRegistry: true
+          attestations:
+            - type: https://cyclonedx.org/bom
+              attestors:
+                - count: 1
+                  entries:
+                    - keys:
+                        publicKeys: |-
+                          -----BEGIN PUBLIC KEY-----
+                          MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEG1S8DH9+1NX8DzL38hf3CGac73rp
+                          XrdtLomnP1o2H2JboszvBDWqtw1y5/L1po8DVYTZr5ze0UKb1VHk6VOpPA==
+                          -----END PUBLIC KEY-----
+                        rekor:
+                          ignoreTlog: true
+                        ctlog:
+                          ignoreSCT: true
+                      repository: "10.96.115.66:5000/evidence/vsa"
+            - type: https://slsa.dev/verification_summary/v1
+              conditions:
+                - all:
+                    - key: "{{ verificationResult }}"
+                      operator: Equals
+                      value: PASSED
+                    - key: "{{ time_before('{{ time_now_utc() }}','{{ expiresAt }}') }}"
+                      operator: Equals
+                      value: true
+                    # The VSA must name the very SBOM evidence admitted by the
+                    # preceding CycloneDX attestation check. This fixture binds
+                    # that immutable SBOM artifact digest, not merely any SBOM
+                    # attached to the image.
+                    - key: "{{ inputAttestations[?uri == 'urn:ln-ssdf:sbom:cyclonedx'].digest.sha256 | [0] }}"
+                      operator: Equals
+                      value: 6ef285ffe1b7f863d27fbc028eefe8bad92086d791c117204b858965d8124baa
+              attestors:
+                - count: 1
+                  entries:
+                    - keys:
+                        publicKeys: |-
+                          -----BEGIN PUBLIC KEY-----
+                          MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEG1S8DH9+1NX8DzL38hf3CGac73rp
+                          XrdtLomnP1o2H2JboszvBDWqtw1y5/L1po8DVYTZr5ze0UKb1VHk6VOpPA==
+                          -----END PUBLIC KEY-----
+                        rekor:
+                          ignoreTlog: true
+                        ctlog:
+                          ignoreSCT: true
+                      repository: "10.96.115.66:5000/evidence/vsa"

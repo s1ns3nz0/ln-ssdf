@@ -1,0 +1,136 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: prometheus-config }
+data:
+  prometheus.yml: |
+    global: { scrape_interval: 15s }
+    scrape_configs:
+      - job_name: lnd
+        static_configs: [{ targets: ["lnd-primary.ssdf-system.svc:8989", "lnd-peer.ssdf-system.svc:8989"] }]
+      - job_name: lndmon
+        static_configs: [{ targets: ["lnd-primary.ssdf-system.svc:9092"] }]
+      - job_name: postgres
+        static_configs: [{ targets: ["postgres-exporter:9187"] }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: postgres-exporter }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: postgres-exporter } }
+  template:
+    metadata: { labels: { app: postgres-exporter } }
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: exporter
+          image: {{ .Values.postgresExporter.image | quote }}
+          env:
+            - { name: DATA_SOURCE_URI, value: "ssdf-postgres.ssdf-system.svc:5432/postgres?sslmode=disable" }
+            - name: DATA_SOURCE_USER
+              valueFrom: { secretKeyRef: { name: postgres-exporter-credential, key: username } }
+            - name: DATA_SOURCE_PASS
+              valueFrom: { secretKeyRef: { name: postgres-exporter-credential, key: password } }
+          ports: [{ name: metrics, containerPort: 9187 }]
+          readinessProbe: { httpGet: { path: /metrics, port: metrics }, initialDelaySeconds: 5 }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: postgres-exporter }
+spec:
+  selector: { app: postgres-exporter }
+  ports: [{ name: metrics, port: 9187, targetPort: metrics }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: prometheus }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: prometheus } }
+  template:
+    metadata: { labels: { app: prometheus } }
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: prometheus
+          image: {{ .Values.prometheus.image | quote }}
+          args: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus"]
+          ports: [{ name: http, containerPort: 9090 }]
+          readinessProbe: { httpGet: { path: /-/ready, port: http }, initialDelaySeconds: 10 }
+          volumeMounts: [{ name: config, mountPath: /etc/prometheus }, { name: data, mountPath: /prometheus }]
+      volumes: [{ name: config, configMap: { name: prometheus-config } }, { name: data, persistentVolumeClaim: { claimName: prometheus-data } }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: prometheus }
+spec:
+  selector: { app: prometheus }
+  ports: [{ name: http, port: 9090, targetPort: http }]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: prometheus-data }
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: {{ .Values.storage.size | quote }} } }
+---
+apiVersion: v1
+kind: Secret
+metadata: { name: grafana-admin }
+type: Opaque
+stringData:
+  admin-password: {{ required "grafana.adminPassword must be supplied at install time" .Values.grafana.adminPassword | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: grafana-provisioning }
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus:9090
+        isDefault: true
+        editable: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: grafana }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: grafana } }
+  template:
+    metadata: { labels: { app: grafana } }
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: grafana
+          image: {{ .Values.grafana.image | quote }}
+          env:
+            - { name: GF_SECURITY_ADMIN_PASSWORD, valueFrom: { secretKeyRef: { name: grafana-admin, key: admin-password } } }
+            - { name: GF_AUTH_ANONYMOUS_ENABLED, value: "false" }
+            - { name: GF_USERS_ALLOW_SIGN_UP, value: "false" }
+          ports: [{ name: http, containerPort: 3000 }]
+          readinessProbe: { httpGet: { path: /api/health, port: http }, initialDelaySeconds: 10 }
+          volumeMounts:
+            - { name: provisioning, mountPath: /etc/grafana/provisioning/datasources }
+            - { name: data, mountPath: /var/lib/grafana }
+      volumes:
+        - { name: provisioning, configMap: { name: grafana-provisioning } }
+        - { name: data, persistentVolumeClaim: { claimName: grafana-data } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: grafana }
+spec:
+  selector: { app: grafana }
+  ports: [{ name: http, port: 3000, targetPort: http }]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: grafana-data }
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: {{ .Values.storage.size | quote }} } }

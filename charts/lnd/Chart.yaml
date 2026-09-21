@@ -1,0 +1,6 @@
+apiVersion: v2
+name: lnd
+description: Two-node regtest lnd drill for ln-ssdf Phase 2.
+type: application
+version: 0.1.0
+appVersion: "0.18.5-beta"

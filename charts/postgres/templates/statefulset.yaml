@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "ln-ssdf-postgres.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "ln-ssdf-postgres.name" . }}
+spec:
+  serviceName: {{ include "ln-ssdf-postgres.fullname" . }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "ln-ssdf-postgres.name" . }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "ln-ssdf-postgres.name" . }}
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}@{{ .Values.image.digest }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.auth.username | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ln-ssdf-postgres.fullname" . }}-bootstrap
+                  key: POSTGRES_PASSWORD
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d postgres"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d postgres"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+      volumes:
+        - name: init
+          configMap:
+            name: {{ include "ln-ssdf-postgres.fullname" . }}-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.storage.storageClassName }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.size }}

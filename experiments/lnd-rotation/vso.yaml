@@ -1,0 +1,40 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultConnection
+metadata:
+  name: e3-vault
+  namespace: experiment-2
+spec:
+  # The proof harness injects the current Vault container address at apply
+  # time. Keep an explicit non-production placeholder in source.
+  address: http://VAULT_ADDRESS_PLACEHOLDER:18300
+  skipTLSVerify: true
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: e3-vault-auth
+  namespace: experiment-2
+spec:
+  method: appRole
+  mount: approle
+  vaultConnectionRef: e3-vault
+  appRole:
+    roleId: ROLE_ID_PLACEHOLDER
+    secretRef: vault-approle
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultDynamicSecret
+metadata:
+  name: lnd-db-credential
+  namespace: experiment-2
+spec:
+  mount: database
+  path: creds/lnd-dynamic
+  requestHTTPMethod: GET
+  renewalPercent: 50
+  revoke: true
+  vaultAuthRef: e3-vault-auth
+  destination:
+    name: lnd-db-credential
+    create: true
+    overwrite: true

@@ -1,0 +1,28 @@
+image:
+  repository: hashicorp/vault
+  tag: "1.20.4"
+  # Linux image digest observed for the Phase 1 bootstrap image.
+  digest: sha256:268bb80aa9c6d13d65fcfa05c0c268caca068952240a8087291a6ce0b66e3a10
+  pullPolicy: IfNotPresent
+
+storage:
+  size: 2Gi
+  storageClassName: ""
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+# The unsealer has no transit block and must be initialized/unsealed manually.
+# The main Vault reads only its transit token from this runtime Secret.
+transit:
+  enabled: false
+  address: ""
+  keyName: main-unseal
+  mountPath: transit/
+  tokenSecretName: ""
+  tokenSecretKey: token

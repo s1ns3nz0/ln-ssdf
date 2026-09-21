@@ -1,0 +1,11 @@
+{
+  "namespace": "https://ln-ssdf.dev/ns/oscal",
+  "version": "1.0.0",
+  "mapping": [
+    {"projectStatus":"satisfied","oscalRepresentation":"observation prop project-status=satisfied","fixture":"valid VSA admitted"},
+    {"projectStatus":"not_satisfied","oscalRepresentation":"observation prop project-status=not_satisfied","fixture":"wrong-subject VSA rejected"},
+    {"projectStatus":"no_evidence","oscalRepresentation":"observation prop project-status=no_evidence","fixture":"evidence lookup unavailable"},
+    {"projectStatus":"not_implemented","oscalRepresentation":"observation prop project-status=not_implemented","fixture":"unwired planned check"},
+    {"projectStatus":"not_applicable","oscalRepresentation":"observation prop project-status=not_applicable plus Git scope rationale","fixture":"out-of-scope non-deployment asset"}
+  ]
+}

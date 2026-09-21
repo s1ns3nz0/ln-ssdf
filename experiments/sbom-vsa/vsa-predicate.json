@@ -1,0 +1,29 @@
+{
+  "verifier": {
+    "id": "https://github.com/lightning-labs/ln-ssdf/experiments/sbom-vsa"
+  },
+  "timeVerified": "2026-09-21T05:24:14Z",
+  "expiresAt": "2026-09-23T05:24:14Z",
+  "resourceUri": "localhost:5001/ln-ssdf/alpine@sha256:c64c687cbea9300178b30c95835354e34c4e4febc4badfe27102879de0483b5e",
+  "policy": {
+    "uri": "https://github.com/lightning-labs/ln-ssdf/blob/main/docs/preflight-experiments.md",
+    "digest": {
+      "sha256": "ae9120fe891f715fdb5bc8df4369cc175af0d544d21a2016148acfd5ac3d4d7d"
+    }
+  },
+  "inputAttestations": [
+    {
+      "uri": "urn:ln-ssdf:sbom:cyclonedx",
+      "digest": {
+        "sha256": "53b3231a256aa024d5a5c1b416b173eb58743a5fbd753c64eb34c4355c111df2"
+      }
+    },
+    {
+      "uri": "urn:ln-ssdf:scan:trivy",
+      "digest": {
+        "sha256": "232fd7449275e44f2d192f92c155c855c52ecf48f66d91c2665ff842cd7ac3e4"
+      }
+    }
+  ],
+  "verificationResult": "PASSED"
+}

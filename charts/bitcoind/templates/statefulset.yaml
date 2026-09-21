@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bitcoind
+spec:
+  serviceName: bitcoind
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: bitcoind }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: bitcoind }
+    spec:
+      containers:
+        - name: bitcoind
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}@{{ .Values.image.digest }}"
+          command: ["sh", "-ec"]
+          args:
+            - >-
+              exec bitcoind -regtest -server=1 -txindex=1 -fallbackfee=0.0002
+              -rpcuser={{ .Values.auth.rpcUsername }} -rpcpassword="$RPC_PASSWORD"
+              -rpcbind=0.0.0.0:18443 -rpcallowip=10.244.0.0/16
+              -zmqpubrawblock=tcp://0.0.0.0:28332 -zmqpubrawtx=tcp://0.0.0.0:28333
+          ports:
+            - { name: rpc, containerPort: 18443 }
+            - { name: p2p, containerPort: 18444 }
+            - { name: zmqblock, containerPort: 28332 }
+            - { name: zmqtx, containerPort: 28333 }
+          env:
+            - name: RPC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bitcoind-rpc
+                  key: rpc-password
+          readinessProbe:
+            tcpSocket: { port: rpc }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /data }
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.storage.size }}

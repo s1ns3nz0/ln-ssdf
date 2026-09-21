@@ -1,0 +1,33 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: lnd-primary-wallet
+  namespace: ssdf-system
+spec:
+  mount: kv
+  type: kv-v2
+  path: lnd-primary
+  refreshAfter: 24h
+  hmacSecretData: true
+  vaultAuthRef: ssdf-database-auth
+  destination:
+    name: lnd-primary-wallet
+    create: true
+    overwrite: true
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: lnd-peer-wallet
+  namespace: ssdf-system
+spec:
+  mount: kv
+  type: kv-v2
+  path: lnd-peer
+  refreshAfter: 24h
+  hmacSecretData: true
+  vaultAuthRef: ssdf-database-auth
+  destination:
+    name: lnd-peer-wallet
+    create: true
+    overwrite: true

@@ -1,0 +1,1 @@
+{"profile":{"uuid":"b0d6b53e-b8d5-4010-b6a5-88d44d253c80","metadata":{"title":"ln-ssdf deployment integrity profile","last-modified":"2026-09-21T06:00:00Z","version":"0.1.0","oscal-version":"1.2.3"},"imports":[{"href":"catalog.json","include-controls":[{"with-ids":["DEPLOY-REQ-4"]}]}],"merge":{"as-is":true}}}

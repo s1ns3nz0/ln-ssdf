@@ -1,0 +1,8 @@
+# Runtime and tool caches never belong to the GitOps source.
+.DS_Store
+**/__pycache__/
+*.pyc
+graft/.cache/
+
+# Installed harness source is a separate upstream checkout, not this project.
+codex-harness-s1ns3nz0/

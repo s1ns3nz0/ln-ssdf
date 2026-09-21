@@ -1,0 +1,24 @@
+image:
+  repository: postgres
+  tag: 16-alpine
+  # Manifest-list digest for postgres:16-alpine. Pin the maintained Linux image
+  # so a later mutable tag cannot silently change a bootstrap cluster.
+  digest: sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+  pullPolicy: IfNotPresent
+
+auth:
+  username: postgres
+  # Required at install time. Never commit this value.
+  bootstrapPassword: ""
+
+storage:
+  size: 5Gi
+  storageClassName: ""
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi

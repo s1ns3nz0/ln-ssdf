@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ssdf-vso-auth
+  namespace: ssdf-system
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultConnection
+metadata:
+  name: main-vault
+  namespace: ssdf-system
+spec:
+  address: http://main-vault.vault-system.svc:8200
+  skipTLSVerify: true
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: ssdf-database-auth
+  namespace: ssdf-system
+spec:
+  method: kubernetes
+  mount: kubernetes
+  vaultConnectionRef: main-vault
+  kubernetes:
+    role: ssdf-vso
+    serviceAccount: ssdf-vso-auth
+    audiences:
+      - vault
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultDynamicSecret
+metadata:
+  name: lnd-db-credential
+  namespace: ssdf-system
+spec:
+  mount: database
+  path: creds/lnd
+  requestHTTPMethod: GET
+  renewalPercent: 50
+  revoke: true
+  vaultAuthRef: ssdf-database-auth
+  destination:
+    name: lnd-db-credential
+    create: true
+    overwrite: true
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultDynamicSecret
+metadata:
+  name: postgres-exporter-credential
+  namespace: ssdf-system
+spec:
+  mount: database
+  path: creds/postgres-observability
+  requestHTTPMethod: GET
+  renewalPercent: 50
+  revoke: true
+  vaultAuthRef: ssdf-database-auth
+  destination:
+    name: postgres-exporter-credential
+    create: true
+    overwrite: true

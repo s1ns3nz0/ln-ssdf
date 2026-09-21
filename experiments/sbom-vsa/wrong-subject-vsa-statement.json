@@ -1,0 +1,11 @@
+{
+  "_type": "https://in-toto.io/Statement/v0.1",
+  "subject": [{"name": "10.96.115.66:5000/fixtures/alpine", "digest": {"sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}],
+  "predicateType": "https://slsa.dev/verification_summary/v1",
+  "predicate": {
+    "verifier": {"id": "https://github.com/lightning-labs/ln-ssdf/experiments/sbom-vsa"},
+    "timeVerified": "2026-09-21T05:24:14Z",
+    "expiresAt": "2026-09-23T05:24:14Z",
+    "verificationResult": "PASSED"
+  }
+}

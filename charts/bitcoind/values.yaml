@@ -1,0 +1,16 @@
+image:
+  repository: lncm/bitcoind
+  tag: v26.0
+  digest: sha256:2a335ea0e77106fc8768cade374808485a43825a6b4a17e85dd36d4acd931b22
+auth:
+  rpcUsername: regtest
+  rpcPassword: ""
+storage:
+  size: 5Gi
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "2"
+    memory: 2Gi

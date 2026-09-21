@@ -1,0 +1,28 @@
+image:
+  repository: lightninglabs/lnd
+  tag: v0.18.5-beta
+  digest: sha256:2b560c9beb559c57ab2f2da1dfed80d286cf11a6dc6e4354cab84aafba79b6f6
+
+# Official lndinit v0.1.26-beta release archive hashes. The binary is fetched
+# only into an emptyDir and verified before it is executed; it is never stored
+# in the repository or in a long-lived volume.
+lndinit:
+  version: v0.1.26-beta
+  arm64Sha256: 175cdf07d32c196136aecaa80c4e00c18002c4184f26a9fd601c379d4f2efd36
+  amd64Sha256: 6ab28d5b63681dfd0f35a30cbb26a5ce7dd4dbe68819650b0c1432257fb5ded5
+
+lndmon:
+  repository: lightninglabs/lndmon
+  tag: v0.2.15
+  digest: sha256:231d981ddafb6ab73fc6e1ff29697b99f29a1ddcf17c13f8b72267ca3939e8e5
+
+storage:
+  size: 5Gi
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "2"
+    memory: 2Gi

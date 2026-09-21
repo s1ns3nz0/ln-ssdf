@@ -1,0 +1,282 @@
+{
+  "assessment-results": {
+    "uuid": "3a99d01a-7b03-4ca4-a855-aafe0e58432b",
+    "metadata": {
+      "title": "Kyverno Assessment Results",
+      "last-modified": "2026-09-21T06:15:10+00:00",
+      "version": "3.12.1",
+      "oscal-version": "1.1.3"
+    },
+    "import-ap": {
+      "href": "assessment-plan.json"
+    },
+    "results": [
+      {
+        "uuid": "84cdc85c-e60a-4a0e-bce0-f86537547994",
+        "title": "Kyverno Assessment Results",
+        "description": "OSCAL Assessment Results from Kyverno",
+        "start": "2026-09-21T06:15:10+00:00",
+        "reviewed-controls": {
+          "control-selections": [
+            {
+              "include-controls": [
+                {
+                  "control-id": "DEPLOY-REQ-4"
+                }
+              ]
+            }
+          ]
+        },
+        "observations": [
+          {
+            "uuid": "88d728aa-b435-40a1-b005-1445662fc90d",
+            "title": "experiment-1-require-sbom-and-vsa",
+            "description": "experiment-1-require-sbom-and-vsa",
+            "props": [
+              {
+                "name": "assessment-rule-id",
+                "value": "experiment-1-require-sbom-and-vsa"
+              }
+            ],
+            "methods": [
+              "AUTOMATED"
+            ],
+            "subjects": [
+              {
+                "subject-uuid": "9b5b838f-e0cf-454d-b4fd-2d772b259669",
+                "type": "resource",
+                "title": "v1/Pod restored-final experiment-1",
+                "props": [
+                  {
+                    "name": "resource-id",
+                    "value": "1ecf3a5d-f70b-4c23-b439-7630d8be4cab"
+                  },
+                  {
+                    "name": "result",
+                    "value": "pass"
+                  },
+                  {
+                    "name": "evaluated-on",
+                    "value": "2026-09-21T06:09:39+00:00"
+                  },
+                  {
+                    "name": "reason",
+                    "value": "verified image attestations for 10.96.115.66:5000/fixtures/alpine@sha256:c64c687cbea9300178b30c95835354e34c4e4febc4badfe27102879de0483b5e"
+                  }
+                ]
+              },
+              {
+                "subject-uuid": "14706be5-03f7-4286-980c-2e8e03a85dba",
+                "type": "resource",
+                "title": "v1/Pod wrong-subject-dsse-verified experiment-1",
+                "props": [
+                  {
+                    "name": "resource-id",
+                    "value": "2c2c6144-993f-4f67-b4e2-37f9024b4877"
+                  },
+                  {
+                    "name": "result",
+                    "value": "pass"
+                  },
+                  {
+                    "name": "evaluated-on",
+                    "value": "2026-09-21T06:09:39+00:00"
+                  },
+                  {
+                    "name": "reason",
+                    "value": "verified image attestations for 10.96.115.66:5000/fixtures/alpine@sha256:c64c687cbea9300178b30c95835354e34c4e4febc4badfe27102879de0483b5e"
+                  }
+                ]
+              },
+              {
+                "subject-uuid": "aec90928-3de9-4e4a-a60a-68eb237a3eb5",
+                "type": "resource",
+                "title": "v1/Pod wrong-subject-verified experiment-1",
+                "props": [
+                  {
+                    "name": "resource-id",
+                    "value": "35f31921-04f9-404d-acbb-6cd914dd22f4"
+                  },
+                  {
+                    "name": "result",
+                    "value": "pass"
+                  },
+                  {
+                    "name": "evaluated-on",
+                    "value": "2026-09-21T06:09:39+00:00"
+                  },
+                  {
+                    "name": "reason",
+                    "value": "verified image attestations for 10.96.115.66:5000/fixtures/alpine@sha256:c64c687cbea9300178b30c95835354e34c4e4febc4badfe27102879de0483b5e"
+                  }
+                ]
+              },
+              {
+                "subject-uuid": "20fad268-2d81-41d3-a021-085bfb45f428",
+                "type": "resource",
+                "title": "v1/Pod wrong-subject-dsse experiment-1",
+                "props": [
+                  {
+                    "name": "resource-id",
+                    "value": "5ba4f48d-08bb-4029-a9a5-06d6efade4f4"
+                  },
+                  {
+                    "name": "result",
+                    "value": "pass"
+                  },
+                  {
+                    "name": "evaluated-on",
+                    "value": "2026-09-21T06:09:39+00:00"
+                  },
+                  {
+                    "name": "reason",
+                    "value": "verified image attestations for 10.96.115.66:5000/fixtures/alpine@sha256:c64c687cbea9300178b30c95835354e34c4e4febc4badfe27102879de0483b5e"
+                  }
+                ]
+              },
+              {
+                "subject-uuid": "15eb9524-b88a-48b5-b982-461ee58ae99c",
+                "type": "resource",
+                "title": "v1/Pod wrong-subject experiment-1",
+                "props": [
+                  {
+                    "name": "resource-id",
+                    "value": "86105392-f131-4815-8352-08e6ac6e998a"
+                  },
+                  {
+                    "name": "result",
+                    "value": "pass"
+                  },
+                  {
+                    "name": "evaluated-on",
+                    "value": "2026-09-21T06:09:39+00:00"
+                  },
+                  {
+                    "name": "reason",
+                    "value": "verified image attestations for 10.96.115.66:5000/fixtures/alpine@sha256:c64c687cbea9300178b30c95835354e34c4e4febc4badfe27102879de0483b5e"
+                  }
+                ]
+              },
+              {
+                "subject-uuid": "b8cca7c1-771b-4391-bdf2-7aa6b69b4f6f",
+                "type": "resource",
+                "title": "v1/Pod restored-vsa experiment-1",
+                "props": [
+                  {
+                    "name": "resource-id",
+                    "value": "9a754074-d2e8-4f51-b1a5-8a2b84f753a7"
+                  },
+                  {
+                    "name": "result",
+                    "value": "pass"
+                  },
+                  {
+                    "name": "evaluated-on",
+                    "value": "2026-09-21T06:09:39+00:00"
+                  },
+                  {
+                    "name": "reason",
+                    "value": "verified image attestations for 10.96.115.66:5000/fixtures/alpine@sha256:c64c687cbea9300178b30c95835354e34c4e4febc4badfe27102879de0483b5e"
+                  }
+                ]
+              },
+              {
+                "subject-uuid": "eb541f63-b351-4b1f-93b0-ff3baa52363c",
+                "type": "resource",
+                "title": "v1/Pod valid-vsa experiment-1",
+                "props": [
+                  {
+                    "name": "resource-id",
+                    "value": "abd7603b-32ef-45ad-87f7-28580b3b2ed9"
+                  },
+                  {
+                    "name": "result",
+                    "value": "pass"
+                  },
+                  {
+                    "name": "evaluated-on",
+                    "value": "2026-09-21T06:09:39+00:00"
+                  },
+                  {
+                    "name": "reason",
+                    "value": "verified image attestations for 10.96.115.66:5000/fixtures/alpine@sha256:c64c687cbea9300178b30c95835354e34c4e4febc4badfe27102879de0483b5e"
+                  }
+                ]
+              },
+              {
+                "subject-uuid": "27ec4356-e526-4af9-b7d3-1f91d06b5767",
+                "type": "resource",
+                "title": "v1/Pod final-valid-vsa experiment-1",
+                "props": [
+                  {
+                    "name": "resource-id",
+                    "value": "cd65de69-10d3-41a9-81ad-a663a0b98e36"
+                  },
+                  {
+                    "name": "result",
+                    "value": "pass"
+                  },
+                  {
+                    "name": "evaluated-on",
+                    "value": "2026-09-21T06:09:39+00:00"
+                  },
+                  {
+                    "name": "reason",
+                    "value": "verified image attestations for 10.96.115.66:5000/fixtures/alpine@sha256:c64c687cbea9300178b30c95835354e34c4e4febc4badfe27102879de0483b5e"
+                  }
+                ]
+              },
+              {
+                "subject-uuid": "150ab1e6-dcda-40e0-aaa8-52d0ba9e7852",
+                "type": "resource",
+                "title": "v1/Pod restored-after-ttl experiment-1",
+                "props": [
+                  {
+                    "name": "resource-id",
+                    "value": "cf777efe-c1c2-4fe3-841e-942f3b81c1b6"
+                  },
+                  {
+                    "name": "result",
+                    "value": "pass"
+                  },
+                  {
+                    "name": "evaluated-on",
+                    "value": "2026-09-21T06:09:39+00:00"
+                  },
+                  {
+                    "name": "reason",
+                    "value": "verified image attestations for 10.96.115.66:5000/fixtures/alpine@sha256:c64c687cbea9300178b30c95835354e34c4e4febc4badfe27102879de0483b5e"
+                  }
+                ]
+              },
+              {
+                "subject-uuid": "f16f9ed0-99ed-41bb-b762-a41fc99f9a88",
+                "type": "resource",
+                "title": "v1/Pod fresh-ttl experiment-1",
+                "props": [
+                  {
+                    "name": "resource-id",
+                    "value": "e94cb36b-2096-45cb-b3d7-43222b216a4c"
+                  },
+                  {
+                    "name": "result",
+                    "value": "pass"
+                  },
+                  {
+                    "name": "evaluated-on",
+                    "value": "2026-09-21T06:09:39+00:00"
+                  },
+                  {
+                    "name": "reason",
+                    "value": "verified image attestations for 10.96.115.66:5000/fixtures/alpine@sha256:c64c687cbea9300178b30c95835354e34c4e4febc4badfe27102879de0483b5e"
+                  }
+                ]
+              }
+            ],
+            "collected": "2026-09-21T06:15:10+00:00"
+          }
+        ]
+      }
+    ]
+  }
+}

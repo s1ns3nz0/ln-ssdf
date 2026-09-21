@@ -1,0 +1,93 @@
+{{- if and .Values.transit.enabled (or (not .Values.transit.address) (not .Values.transit.tokenSecretName)) }}
+{{- fail "transit.address and transit.tokenSecretName are required when transit.enabled=true" }}
+{{- end }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "ln-ssdf-vault.fullname" . }}
+spec:
+  serviceName: {{ include "ln-ssdf-vault.fullname" . }}-internal
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "ln-ssdf-vault.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        app.kubernetes.io/name: {{ include "ln-ssdf-vault.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      serviceAccountName: {{ include "ln-ssdf-vault.fullname" . }}
+      securityContext:
+        fsGroup: 100
+      containers:
+        - name: vault
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}@{{ .Values.image.digest }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # Prefixing the command with `vault` bypasses the image entrypoint's
+          # development-only -dev-listen-address injection.
+          command: ["vault"]
+          args: ["server", "-config=/vault/config/vault.hcl"]
+          ports:
+            - name: api
+              containerPort: 8200
+            - name: cluster
+              containerPort: 8201
+          env:
+            - name: SKIP_CHOWN
+              value: "true"
+            - name: SKIP_SETCAP
+              value: "true"
+            {{- if .Values.transit.enabled }}
+            - name: VAULT_SEAL_TYPE
+              value: transit
+            # Transit's address and token use the standard VAULT_ADDR and
+            # VAULT_TOKEN environment variables; the key/mount are seal-specific.
+            - name: VAULT_ADDR
+              value: {{ .Values.transit.address | quote }}
+            - name: VAULT_TRANSIT_SEAL_KEY_NAME
+              value: {{ .Values.transit.keyName | quote }}
+            - name: VAULT_TRANSIT_SEAL_MOUNT_PATH
+              value: {{ .Values.transit.mountPath | quote }}
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.transit.tokenSecretName }}
+                  key: {{ .Values.transit.tokenSecretKey }}
+            {{- end }}
+          readinessProbe:
+            tcpSocket:
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: api
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /vault/config
+              readOnly: true
+            - name: data
+              mountPath: /vault/data
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "ln-ssdf-vault.fullname" . }}-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.storage.storageClassName }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.size }}

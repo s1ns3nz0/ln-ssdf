@@ -1,0 +1,141 @@
+{{- range $node := list "primary" "peer" }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: lnd-{{ $node }}
+spec:
+  serviceName: lnd-{{ $node }}
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: lnd, ln-ssdf.io/node: {{ $node }} }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: lnd, ln-ssdf.io/node: {{ $node }} }
+    spec:
+      automountServiceAccountToken: false
+      initContainers:
+        - name: fetch-lndinit
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}@{{ $.Values.image.digest }}"
+          command: ["sh", "-ec"]
+          args:
+            - |
+              case "$(uname -m)" in
+                aarch64|arm64) arch=arm64; checksum={{ $.Values.lndinit.arm64Sha256 }} ;;
+                x86_64|amd64) arch=amd64; checksum={{ $.Values.lndinit.amd64Sha256 }} ;;
+                *) echo "unsupported lndinit architecture: $(uname -m)" >&2; exit 1 ;;
+              esac
+              archive="/tools/lndinit-linux-${arch}-{{ $.Values.lndinit.version }}.tar.gz"
+              curl --fail --location --proto '=https' --tlsv1.2 \
+                "https://github.com/lightninglabs/lndinit/releases/download/{{ $.Values.lndinit.version }}/lndinit-linux-${arch}-{{ $.Values.lndinit.version }}.tar.gz" \
+                -o "$archive"
+              echo "$checksum  $archive" | sha256sum -c -
+              tar -xzf "$archive" -C /tools
+              binary="$(find /tools -type f -name lndinit -print -quit)"
+              test -n "$binary"
+              chmod 0555 "$binary"
+              cp "$binary" /tools/lndinit
+          volumeMounts:
+            - { name: lndinit, mountPath: /tools }
+      containers:
+        - name: lnd
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}@{{ $.Values.image.digest }}"
+          command: ["sh", "-ec"]
+          args:
+            - |
+              urlencode() {
+                printf '%s' "$1" | od -An -tx1 | tr -d ' \n' | sed 's/../%&/g'
+              }
+              db_user_encoded="$(urlencode "$DB_USERNAME")"
+              db_password_encoded="$(urlencode "$DB_PASSWORD")"
+              lnd \
+                --bitcoin.active --bitcoin.regtest --bitcoin.node=bitcoind \
+                --bitcoind.rpchost=bitcoind.ssdf-system.svc:18443 \
+                --bitcoind.rpcuser=regtest --bitcoind.rpcpass="$RPC_PASSWORD" \
+                --bitcoind.zmqpubrawblock=tcp://bitcoind.ssdf-system.svc:28332 \
+                --bitcoind.zmqpubrawtx=tcp://bitcoind.ssdf-system.svc:28333 \
+                --alias=ssdf-{{ $node }} --listen=0.0.0.0:9735 \
+                --rpclisten=0.0.0.0:10009 --restlisten=0.0.0.0:8080 \
+                --prometheus.enable --prometheus.listen=0.0.0.0:8989 \
+                --wallet-unlock-password-file=/wallet-secret/wallet-password \
+                --wallet-unlock-allow-create \
+                {{- if eq $node "primary" }}
+                --db.backend=postgres --db.postgres.dsn="postgres://${db_user_encoded}:${db_password_encoded}@ssdf-postgres.ssdf-system.svc:5432/lnd?sslmode=disable" \
+                {{- end }}
+                &
+              lnd_pid=$!
+              trap 'kill -TERM "$lnd_pid" 2>/dev/null || true; wait "$lnd_pid"; exit 0' TERM INT
+              until test -f /root/.lnd/tls.cert; do
+                kill -0 "$lnd_pid" || { wait "$lnd_pid"; exit $?; }
+                sleep 1
+              done
+              /tools/lndinit init-wallet \
+                --network=regtest \
+                --secret-source=file \
+                --file.seed=/wallet-secret/seed \
+                --file.wallet-password=/wallet-secret/wallet-password \
+                --init-type=rpc --init-rpc.server=localhost:10009 \
+                --init-rpc.tls-cert-path=/root/.lnd/tls.cert || true
+              # A remote wallet has no wallet.db sentinel. On restart lndinit
+              # correctly observes an already-existing, locked wallet; lnd's
+              # password-file path unlocks it. wait-ready makes that branch
+              # explicit and prevents a false Ready result.
+              /tools/lndinit wait-ready --rpcserver=localhost:10009 --timeout=60s
+              wait "$lnd_pid"
+          ports:
+            - { name: p2p, containerPort: 9735 }
+            - { name: rpc, containerPort: 10009 }
+            - { name: rest, containerPort: 8080 }
+            - { name: metrics, containerPort: 8989 }
+          env:
+            - name: RPC_PASSWORD
+              valueFrom: { secretKeyRef: { name: bitcoind-rpc, key: rpc-password } }
+            {{- if eq $node "primary" }}
+            - name: DB_USERNAME
+              valueFrom: { secretKeyRef: { name: lnd-db-credential, key: username } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: lnd-db-credential, key: password } }
+            {{- end }}
+          readinessProbe:
+            tcpSocket: { port: rpc }
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            {{- toYaml $.Values.resources | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /root/.lnd }
+            - { name: wallet-secret, mountPath: /wallet-secret, readOnly: true }
+            - { name: lndinit, mountPath: /tools, readOnly: true }
+        {{- if eq $node "primary" }}
+        - name: lndmon
+          image: "{{ $.Values.lndmon.repository }}:{{ $.Values.lndmon.tag }}@{{ $.Values.lndmon.digest }}"
+          args:
+            - --prometheus.listenaddr=0.0.0.0:9092
+            - --lnd.network=regtest
+            - --lnd.host=localhost:10009
+            - --lnd.macaroondir=/root/.lnd/data/chain/bitcoin/regtest
+            - --lnd.tlspath=/root/.lnd/tls.cert
+          ports:
+            - { name: lndmon, containerPort: 9092 }
+          readinessProbe:
+            tcpSocket: { port: lndmon }
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: "1", memory: 512Mi }
+          volumeMounts:
+            - { name: data, mountPath: /root/.lnd, readOnly: true }
+        {{- end }}
+      volumes:
+        - name: wallet-secret
+          secret: { secretName: lnd-{{ $node }}-wallet }
+        - name: lndinit
+          emptyDir: { medium: Memory }
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests: { storage: {{ $.Values.storage.size }} }
+---
+{{- end }}

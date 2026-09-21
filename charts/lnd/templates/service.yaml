@@ -1,0 +1,17 @@
+{{- range $node := list "primary" "peer" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: lnd-{{ $node }}
+spec:
+  selector: { app.kubernetes.io/name: lnd, ln-ssdf.io/node: {{ $node }} }
+  ports:
+    - { name: p2p, port: 9735, targetPort: p2p }
+    - { name: rpc, port: 10009, targetPort: rpc }
+    - { name: rest, port: 8080, targetPort: rest }
+    - { name: metrics, port: 8989, targetPort: metrics }
+    {{- if eq $node "primary" }}
+    - { name: lndmon, port: 9092, targetPort: lndmon }
+    {{- end }}
+---
+{{- end }}

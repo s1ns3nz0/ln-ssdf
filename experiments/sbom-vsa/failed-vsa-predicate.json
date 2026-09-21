@@ -1,0 +1,6 @@
+{
+  "verifier": {"id": "https://github.com/lightning-labs/ln-ssdf/experiments/sbom-vsa"},
+  "timeVerified": "2026-09-21T05:30:00Z",
+  "resourceUri": "10.96.115.66:5000/fixtures/alpine@sha256:c64c687cbea9300178b30c95835354e34c4e4febc4badfe27102879de0483b5e",
+  "verificationResult": "FAILED"
+}
