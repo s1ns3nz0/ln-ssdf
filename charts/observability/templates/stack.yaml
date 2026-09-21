@@ -11,6 +11,36 @@ data:
         static_configs: [{ targets: ["lnd-primary.ssdf-system.svc:9092"] }]
       - job_name: postgres
         static_configs: [{ targets: ["postgres-exporter:9187"] }]
+    rule_files:
+      - /etc/prometheus/rules/*.yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: prometheus-rules }
+data:
+  ssdf-integrity.yaml: |
+    groups:
+      - name: ssdf-evidence-integrity
+        rules:
+          - alert: SsdfEvidenceTamperDetected
+            expr: pg_ssdf_evidence_chain_tamper_detected > 0
+            for: 0m
+            labels: { severity: critical }
+            annotations:
+              summary: SSDF evidence hash chain verification failed
+              description: A PostgreSQL evidence row no longer matches its append-only hash chain.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: postgres-exporter-queries }
+data:
+  queries.yaml: |
+    ssdf_evidence_chain:
+      query: "SELECT CASE WHEN valid THEN 0 ELSE 1 END AS tamper_detected FROM verify_evidence_chain()"
+      metrics:
+        - tamper_detected:
+            usage: "GAUGE"
+            description: "Whether SSDF evidence hash chain verification detected tampering (1 means detected)."
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -26,13 +56,19 @@ spec:
         - name: exporter
           image: {{ .Values.postgresExporter.image | quote }}
           env:
-            - { name: DATA_SOURCE_URI, value: "ssdf-postgres.ssdf-system.svc:5432/postgres?sslmode=disable" }
+            - { name: DATA_SOURCE_URI, value: "ssdf-postgres.ssdf-system.svc:5432/ssdf?sslmode=disable" }
             - name: DATA_SOURCE_USER
               valueFrom: { secretKeyRef: { name: postgres-exporter-credential, key: username } }
             - name: DATA_SOURCE_PASS
               valueFrom: { secretKeyRef: { name: postgres-exporter-credential, key: password } }
           ports: [{ name: metrics, containerPort: 9187 }]
+          args: ["--extend.query-path=/etc/postgres-exporter/queries.yaml"]
           readinessProbe: { httpGet: { path: /metrics, port: metrics }, initialDelaySeconds: 5 }
+          volumeMounts:
+            - { name: custom-queries, mountPath: /etc/postgres-exporter, readOnly: true }
+      volumes:
+        - name: custom-queries
+          configMap: { name: postgres-exporter-queries }
 ---
 apiVersion: v1
 kind: Service
@@ -45,6 +81,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata: { name: prometheus }
 spec:
+  # A single TSDB PVC cannot safely be opened by surge and old Pods together.
+  # Recreate makes configuration updates wait for the old writer to exit.
+  strategy: { type: Recreate }
   replicas: 1
   selector: { matchLabels: { app: prometheus } }
   template:
@@ -57,8 +96,14 @@ spec:
           args: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus"]
           ports: [{ name: http, containerPort: 9090 }]
           readinessProbe: { httpGet: { path: /-/ready, port: http }, initialDelaySeconds: 10 }
-          volumeMounts: [{ name: config, mountPath: /etc/prometheus }, { name: data, mountPath: /prometheus }]
-      volumes: [{ name: config, configMap: { name: prometheus-config } }, { name: data, persistentVolumeClaim: { claimName: prometheus-data } }]
+          volumeMounts:
+            - { name: config, mountPath: /etc/prometheus }
+            - { name: rules, mountPath: /etc/prometheus/rules, readOnly: true }
+            - { name: data, mountPath: /prometheus }
+      volumes:
+        - { name: config, configMap: { name: prometheus-config } }
+        - { name: rules, configMap: { name: prometheus-rules } }
+        - { name: data, persistentVolumeClaim: { claimName: prometheus-data } }
 ---
 apiVersion: v1
 kind: Service
