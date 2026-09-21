@@ -1,0 +1,19 @@
+[package]
+name = "payment-buyer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+base64 = "0.22"
+clap = { version = "4", features = ["derive"] }
+fs2 = "0.4"
+lightning-invoice = "0.34"
+# LND's generated TLS certificate is a CA-capable self-signed server
+# certificate. Rustls/WebPKI rejects that shape as a leaf; native TLS accepts it
+# when it is explicitly installed as this client's only private trust anchor.
+reqwest = { version = "0.12", default-features = false, features = ["json", "native-tls-vendored"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+url = "2"

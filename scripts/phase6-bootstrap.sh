@@ -8,7 +8,15 @@ curl --fail --location --proto '=https' --tlsv1.2 https://kyverno.github.io/kyve
 kubectl --context "$context" create namespace kyverno >/dev/null 2>&1 || true
 helm upgrade --install kyverno "$tmp/kyverno.tgz" --kube-context "$context" --namespace kyverno
 kubectl --context "$context" -n kyverno rollout status deployment/kyverno-admission-controller --timeout=300s
-kubectl --context "$context" apply -f "$repo_root/manifests/phase6/policies.yaml"
+# Deployment readiness can precede the admission webhook listener becoming
+# reachable through its Service on a freshly created kind cluster.
+for attempt in $(seq 1 12); do
+  if kubectl --context "$context" apply -f "$repo_root/manifests/phase6/policies.yaml"; then
+    break
+  fi
+  [[ "$attempt" == 12 ]] && { echo "Kyverno policy webhook did not become ready" >&2; exit 1; }
+  sleep 5
+done
 if kubectl --context "$context" run mutable-tag --image=busybox:1.36 --restart=Never -n ssdf-policy-test --dry-run=server >/dev/null 2>&1; then
   echo "mutable image unexpectedly admitted" >&2
   exit 1

@@ -3,6 +3,9 @@
 **/__pycache__/
 *.pyc
 graft/.cache/
+.env
+*.swp
+**/target/
 
 # Installed harness source is a separate upstream checkout, not this project.
 codex-harness-s1ns3nz0/

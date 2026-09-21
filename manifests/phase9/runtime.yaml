@@ -1,0 +1,184 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: opencti-system
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: aperture-seller-invoice
+  namespace: ssdf-system
+spec:
+  mount: kv
+  type: kv-v2
+  path: lnd-primary-l402
+  refreshAfter: 24h
+  hmacSecretData: true
+  vaultAuthRef: ssdf-database-auth
+  destination:
+    name: aperture-seller-invoice
+    create: true
+    overwrite: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: phase9-public-stix-2.1
+  namespace: opencti-system
+data:
+  public-stix-2.1.json: |
+    {"type":"bundle","id":"bundle--f9ccf3a1-6364-4a06-a6c9-0f0c0f7c1c0b","objects":[{"type":"indicator","spec_version":"2.1","id":"indicator--c9f6af0f-2ecf-4b16-aed9-7fd511a18c8e","created":"2020-01-01T00:00:00.000Z","modified":"2020-01-01T00:00:00.000Z","name":"Example malicious IPv4","pattern":"[ipv4-addr:value = '198.51.100.42']","pattern_type":"stix","valid_from":"2020-01-01T00:00:00.000Z"},{"type":"campaign","spec_version":"2.1","id":"campaign--6b3f1c15-c3fc-4e59-a779-42d742aa8d2e","created":"2020-01-01T00:00:00.000Z","modified":"2020-01-01T00:00:00.000Z","name":"Example public campaign"},{"type":"report","spec_version":"2.1","id":"report--b4c59e2a-59f2-4fa7-8505-576412fbc5b3","created":"2020-01-01T00:00:00.000Z","modified":"2020-01-01T00:00:00.000Z","name":"Example public report","published":"2020-01-01T00:00:00.000Z","report_types":["threat-report"],"object_refs":[]}]}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aperture-phase9-config
+  namespace: ssdf-system
+data:
+  aperture.yaml: |
+    listenaddr: "0.0.0.0:8080"
+    basedir: "/data"
+    insecure: true
+    strictverify: false
+    dbbackend: "sqlite"
+    sqlite: { dbfile: "/data/aperture.db" }
+    authenticator:
+      network: "regtest"
+      lndhost: "lnd-primary-0:10009"
+      tlspath: "/lnd/tls.cert"
+      macdir: "/lnd"
+    services:
+      - { name: "ti-indicator", hostregexp: '^aperture\.ssdf-system\.svc(?::8080)?$', pathregexp: '^/v1/indicator/[^/]+$', address: "ti-product-api.opencti-system.svc:8080", protocol: http, timeout: 300, price: 10 }
+      - { name: "ti-campaign", hostregexp: '^aperture\.ssdf-system\.svc(?::8080)?$', pathregexp: '^/v1/campaign/[^/]+$', address: "ti-product-api.opencti-system.svc:8080", protocol: http, timeout: 300, price: 25 }
+      - { name: "ti-report", hostregexp: '^aperture\.ssdf-system\.svc(?::8080)?$', pathregexp: '^/v1/report/[^/]+$', address: "ti-product-api.opencti-system.svc:8080", protocol: http, timeout: 300, price: 50 }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: lnd-primary-0, namespace: ssdf-system }
+spec:
+  selector: { app.kubernetes.io/name: lnd, ln-ssdf.io/node: primary }
+  ports: [{ name: rpc, port: 10009, targetPort: rpc }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: lnd-peer-0, namespace: ssdf-system }
+spec:
+  selector: { app.kubernetes.io/name: lnd, ln-ssdf.io/node: peer }
+  ports: [{ name: rest, port: 8080, targetPort: rest }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ti-product-api
+  namespace: opencti-system
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: ti-product-api } }
+  template:
+    metadata: { labels: { app: ti-product-api } }
+    spec:
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: api
+          image: ln-ssdf/ti-product-api:phase9
+          imagePullPolicy: IfNotPresent
+          ports: [{ name: http, containerPort: 8080 }]
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] } }
+          volumeMounts: [{ name: fixture, mountPath: /fixtures, readOnly: true }]
+          readinessProbe: { httpGet: { path: /healthz, port: http } }
+          resources: { requests: { cpu: 50m, memory: 64Mi }, limits: { cpu: "1", memory: 256Mi } }
+      volumes:
+        - name: fixture
+          configMap: { name: phase9-public-stix-2.1 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ti-product-api
+  namespace: opencti-system
+spec:
+  selector: { app: ti-product-api }
+  ports: [{ name: http, port: 8080, targetPort: http }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aperture
+  namespace: ssdf-system
+spec:
+  replicas: 1
+  selector: { matchLabels: { app.kubernetes.io/name: aperture } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: aperture } }
+    spec:
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      initContainers:
+        - name: decode-invoice-macaroon
+          image: busybox:1.36.1@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662
+          command: ["sh", "-ec", "chmod 0700 /data /lnd; umask 077; base64 -d /vault/invoice.macaroon-b64 > /lnd/invoice.macaroon; base64 -d /vault/tls.cert-b64 > /lnd/tls.cert; chown -R 65532:65532 /data /lnd"]
+          securityContext: { runAsUser: 0, runAsNonRoot: false, allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"], add: ["CHOWN"] } }
+          volumeMounts: [{ name: seller-invoice, mountPath: /vault, readOnly: true }, { name: lnd, mountPath: /lnd }, { name: data, mountPath: /data }]
+      containers:
+        - name: aperture
+          image: ln-ssdf/aperture:phase9
+          args: ["--configfile=/config/aperture.yaml", "--basedir=/data", "--sqlite.dbfile=/data/aperture.db", "--logging.file.disable"]
+          ports: [{ name: http, containerPort: 8080 }]
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] } }
+          readinessProbe: { tcpSocket: { port: http }, initialDelaySeconds: 5 }
+          volumeMounts: [{ name: config, mountPath: /config, readOnly: true }, { name: lnd, mountPath: /lnd, readOnly: true }, { name: data, mountPath: /data }]
+          resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { cpu: "1", memory: 512Mi } }
+      volumes:
+        - { name: config, configMap: { name: aperture-phase9-config } }
+        - { name: seller-invoice, secret: { secretName: aperture-seller-invoice } }
+        - { name: lnd, emptyDir: { medium: Memory } }
+        - { name: data, emptyDir: {} }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aperture
+  namespace: ssdf-system
+spec:
+  selector: { app.kubernetes.io/name: aperture }
+  ports: [{ name: http, port: 8080, targetPort: http }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-buyer
+  namespace: ssdf-system
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: payment-buyer } }
+  template:
+    metadata: { labels: { app: payment-buyer } }
+    spec:
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: buyer
+          image: ln-ssdf/payment-buyer:phase9
+          imagePullPolicy: IfNotPresent
+          args: ["--serve"]
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] } }
+          volumeMounts:
+            - { name: lnd-payment, mountPath: /lnd, readOnly: true }
+            - { name: state, mountPath: /state }
+          resources: { requests: { cpu: 50m, memory: 64Mi }, limits: { cpu: "1", memory: 128Mi } }
+      volumes:
+        - name: lnd-payment
+          secret: { secretName: lnd-peer-payment-api }
+        - name: state
+          persistentVolumeClaim: { claimName: payment-buyer-budget }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: payment-buyer-budget
+  namespace: ssdf-system
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests: { storage: 128Mi }
