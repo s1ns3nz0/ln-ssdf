@@ -28,6 +28,13 @@ for command in base64 curl git helm jq kind kubectl openssl shasum tar; do
   command -v "$command" >/dev/null || { echo "missing: $command" >&2; exit 1; }
 done
 
+# A fresh kind cluster cannot be paired with an earlier Vault initialization.
+# Refuse a non-empty directory before deleting the named cluster, preserving
+# recovery material and making the caller select a new state location instead.
+if [[ -d "$state_dir" ]] && [[ -n "$(find "$state_dir" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+  echo "state-dir must be new or empty for a fresh bootstrap; existing recovery material was not changed" >&2
+  exit 2
+fi
 umask 077
 mkdir -p "$state_dir"
 chmod 700 "$state_dir"
