@@ -17,13 +17,16 @@ for command in curl git helm jq kubectl shasum tar; do
   command -v "$command" >/dev/null || { echo "missing required command: $command" >&2; exit 1; }
 done
 git -C "$repo_root" rev-parse --verify main^{commit} >/dev/null
+git_revision="$(git -C "$repo_root" rev-parse main)"
 
 k() { kubectl --context "$context" "$@"; }
 wait_app() {
-  local app="$1" status
+  local app="$1" expected_revision="${2:-}" status
   for _ in $(seq 1 90); do
     status="$(k -n argocd get application "$app" -o json 2>/dev/null || true)"
-    if jq -e '.status.sync.status == "Synced" and .status.health.status == "Healthy"' <<<"$status" >/dev/null 2>&1; then
+    if jq -e --arg revision "$expected_revision" \
+      '.status.sync.status == "Synced" and .status.health.status == "Healthy" and ($revision == "" or .status.sync.revision == $revision)' \
+      <<<"$status" >/dev/null 2>&1; then
       return 0
     fi
     sleep 2
@@ -66,7 +69,20 @@ for workload in statefulset/argocd-application-controller deployment/argocd-repo
 done
 
 k apply -f "$repo_root/gitops/root-application.yaml"
-for app in ln-ssdf-root vault-unsealer vault-main postgres bitcoind vault-secrets-operator phase1-vso-resources phase2-vso-resources lnd observability gitops-probe; do
-  wait_app "$app"
+for app in ln-ssdf-root vault-unsealer vault-main postgres bitcoind phase1-vso-resources phase2-vso-resources lnd observability gitops-probe; do
+  wait_app "$app" "$git_revision"
 done
+wait_app vault-secrets-operator
+
+# The ConfigMap is intentionally non-sensitive. A direct mutation must be
+# self-healed from Git before this gate can pass.
+probe_revision="$(k -n ssdf-system get configmap gitops-probe -o jsonpath='{.data.revision}')"
+k -n ssdf-system patch configmap gitops-probe --type=merge -p '{"data":{"revision":"out-of-band"}}' >/dev/null
+for _ in $(seq 1 90); do
+  [[ "$(k -n ssdf-system get configmap gitops-probe -o jsonpath='{.data.revision}')" == "$probe_revision" ]] && break
+  sleep 2
+done
+[[ "$(k -n ssdf-system get configmap gitops-probe -o jsonpath='{.data.revision}')" == "$probe_revision" ]] || {
+  echo "ArgoCD did not self-heal the GitOps probe" >&2; exit 1;
+}
 echo "Phase 4 bootstrap gate passed: ArgoCD applications are Synced and Healthy from the in-cluster Git source."
