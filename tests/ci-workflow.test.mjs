@@ -8,4 +8,7 @@ test('CI pins actions and reserves keyless signing for main pushes', () => {
   assert.match(workflow, /id-token: write/);
   assert.match(workflow, /github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/);
   assert.match(workflow, /cosign sign-blob --yes/);
+  const verifier = readFileSync('scripts/verify-ci-provenance.sh', 'utf8');
+  assert.match(verifier, /--certificate-oidc-issuer 'https:\/\/token\.actions\.githubusercontent\.com'/);
+  assert.match(verifier, /github\.com\/\$\{repository\}\/.github\/workflows\/ci\.yml@refs\/heads\/main/);
 });

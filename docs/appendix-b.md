@@ -5,7 +5,7 @@ deployment.
 
 | Scope | Current state | Bound / follow-up |
 |---|---|---|
-| Phase 5 keyless provenance | no_evidence | GitHub protected-main execution, OIDC identity and Rekor bundle verification are not yet observed. |
+| Phase 5 keyless provenance | Partial | GitHub OIDC issuer, exact workflow identity, commit, and transparency-log bundle were verified in [run 35589420371](https://github.com/s1ns3nz0/ln-ssdf/actions/runs/35589420371). `main` branch protection is not configured or verified, and the proof is source provenance rather than image/SBOM/VSA evidence. |
 | Phase 7 VSA enforcement | Explicitly held | All seven runtime images are digest-pinned but have no verified SBOM/VSA evidence; production Enforce remains disabled. |
 | NetworkPolicy | Partial | The exporter→Postgres/DNS and Prometheus←Grafana paths are restricted and runtime-tested. There is no namespace-wide default deny: LND and bitcoind peer traffic need a separately tested policy design. |
 | Evidence tamper alert | Local detection only | Prometheus fires and resolves the alert, but no Alertmanager receiver or paging integration is configured. Rekor checkpoint comparison is also not yet implemented. |

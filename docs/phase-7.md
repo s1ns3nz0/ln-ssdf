@@ -15,4 +15,5 @@ Promotion requires, per image: a signed CycloneDX SBOM, a passing and unexpired
 VSA whose input-attestation digest refers to that exact SBOM, trusted issuer
 identity, and transparency-log verification. The local static-key experiment
 proves a compatible admission fixture only; it does not supply this production
-evidence. GitHub OIDC keyless execution from Phase 5 is likewise still pending.
+evidence. Phase 5 GitHub OIDC source provenance is verified, but it is neither an
+image signature nor the SBOM/VSA evidence required for promotion.
