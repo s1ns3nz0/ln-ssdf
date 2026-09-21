@@ -1,6 +1,8 @@
 name: Phase 7 image evidence
 "on":
   workflow_dispatch: {}
+  schedule:
+    - cron: '23 1 * * *'
 permissions:
   contents: read
   packages: write

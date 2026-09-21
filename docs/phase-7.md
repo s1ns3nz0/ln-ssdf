@@ -1,7 +1,8 @@
 # Phase 7 — image evidence enforcement readiness
 
-**Status: explicitly held; no production Enforce promotion.** The seven
-runtime images in `ssdf-system` are digest-pinned and covered by Phase 6 Audit.
+**Status: diagnostic gate passed; production vulnerability Enforce remains
+disabled.** The seven runtime images in `ssdf-system` are digest-pinned and
+covered by Phase 6 Audit.
 On 2026-09-21, [run 35591049749](https://github.com/s1ns3nz0/ln-ssdf/actions/runs/35591049749)
 generated and keylessly signed CycloneDX SBOM and VSA attestations in the
 dedicated GHCR evidence repository. Independent Cosign verification confirmed
@@ -13,6 +14,11 @@ gate; fixed High/Critical and unfixed Critical findings remain in signed
 `observedFindings` rather than silently disappearing. The stricter `enforce`
 profile remains available for an environment that intends vulnerability-based
 deployment denial.
+
+All seven current VSA attestations were independently verified with the exact
+GitHub Actions OIDC identity and transparency-log proof, then promoted to
+`verified` in the inventory. The workflow reissues the evidence daily, within
+the 48-hour VSA lifetime.
 
 `scripts/phase7-readiness.sh --context kind-ln-ssdf-phase0` compares the live
 Pod image set to that inventory and exits with status 3 while an entry remains
