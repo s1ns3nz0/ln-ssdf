@@ -1,0 +1,25 @@
+# Build context: the pinned, patched AgentGateway checkout prepared by
+# scripts/phase10-build-local.sh. This intentionally excludes upstream's UI.
+FROM docker.io/library/rust:1.98.0-trixie AS builder
+
+WORKDIR /app
+COPY Cargo.toml Cargo.lock ./
+COPY .cargo ./.cargo
+COPY crates ./crates
+COPY catalog ./catalog
+COPY tools ./tools
+
+ENV VERSION=phase10-local GIT_REVISION=local
+
+RUN --mount=type=cache,target=/app/target \
+    --mount=type=cache,id=cargo,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
+    cargo build --locked --profile quick-release --package agentgateway-app --bin agentgateway \
+    --no-default-features --features jemalloc,crypto-aws-lc && \
+    cp /app/target/quick-release/agentgateway /app/agentgateway
+
+FROM cgr.dev/chainguard/glibc-dynamic
+
+COPY --from=builder /app/agentgateway /app/agentgateway
+USER 65532:65532
+ENTRYPOINT ["/app/agentgateway"]

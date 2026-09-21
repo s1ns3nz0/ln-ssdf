@@ -1,0 +1,182 @@
+# AgentGateway upstream base: 91182a58528fee5dd8d6f86906716281d8c45c3f
+diff --git a/crates/agentgateway/src/http/mod.rs b/crates/agentgateway/src/http/mod.rs
+index 1010523..dd8547c 100644
+--- a/crates/agentgateway/src/http/mod.rs
++++ b/crates/agentgateway/src/http/mod.rs
+@@ -8,6 +8,7 @@ pub mod bufferbody;
+ pub mod cors;
+ pub mod delay;
+ pub mod jwt;
++pub mod l402;
+ pub mod localratelimit;
+ pub mod retry;
+ pub mod route;
+diff --git a/crates/agentgateway/src/proxy/httpproxy.rs b/crates/agentgateway/src/proxy/httpproxy.rs
+index 51c6bb9..845931b 100644
+--- a/crates/agentgateway/src/proxy/httpproxy.rs
++++ b/crates/agentgateway/src/proxy/httpproxy.rs
+@@ -212,6 +212,10 @@ async fn apply_request_policies(
+ 			l.start.as_instant() + timeout,
+ 		));
+ 	}
++	pol
++		.l402
++		.apply_without_response("l402", c, l, req, rp.headers())
++		.await?;
+ 
+ 	// CORS must run before authentication, authorization and rate limiting so that:
+ 	// 1. Preflight OPTIONS requests short-circuit without requiring credentials
+diff --git a/crates/agentgateway/src/store/binds.rs b/crates/agentgateway/src/store/binds.rs
+index bc673d6..123eb2b 100644
+--- a/crates/agentgateway/src/store/binds.rs
++++ b/crates/agentgateway/src/store/binds.rs
+@@ -377,6 +377,7 @@ impl BackendPolicies {
+ #[derive(Debug, Default, Serialize)]
+ #[serde(rename_all = "camelCase")]
+ pub struct RoutePolicies {
++	pub l402: RequestPolicy<http::l402::Policy>,
+ 	pub local_rate_limit: RequestPolicy<Vec<http::localratelimit::RateLimit>>,
+ 	pub remote_rate_limit: RequestPolicy<remoteratelimit::RemoteRateLimit>,
+ 	pub authorization: RequestPolicy<HTTPAuthorizationSet>,
+@@ -1141,6 +1142,7 @@ impl Store {
+ 						.timeout
+ 						.merge_with_inheritance(&RequestPolicy::single(p.clone()), lock_inheritance);
+ 				},
++				TrafficPolicy::L402(p) => pol.l402.merge_with_inheritance(p, lock_inheritance),
+ 				TrafficPolicy::Retry(p) => {
+ 					pol
+ 						.retry
+diff --git a/crates/agentgateway/src/types/agent.rs b/crates/agentgateway/src/types/agent.rs
+index f6ef448..5532249 100644
+--- a/crates/agentgateway/src/types/agent.rs
++++ b/crates/agentgateway/src/types/agent.rs
+@@ -2835,6 +2835,7 @@ pub enum FrontendPolicy {
+ #[derive(Debug, Clone, serde::Serialize)]
+ #[serde(rename_all = "camelCase")]
+ pub enum TrafficPolicy {
++	L402(RequestPolicy<http::l402::Policy>),
+ 	Timeout(timeout::Policy),
+ 	Retry(retry::Policy),
+ 	Delay(http::delay::Policy),
+diff --git a/crates/agentgateway/src/types/agent_xds.rs b/crates/agentgateway/src/types/agent_xds.rs
+index e88a75b..840345e 100644
+--- a/crates/agentgateway/src/types/agent_xds.rs
++++ b/crates/agentgateway/src/types/agent_xds.rs
+@@ -3945,6 +3945,7 @@ fn conditional_traffic_policy_to_policy(
+ 
+ fn traffic_policy_kind_name(policy: &TrafficPolicy) -> &'static str {
+ 	match policy {
++		TrafficPolicy::L402(_) => "l402",
+ 		TrafficPolicy::Timeout(_) => "timeout",
+ 		TrafficPolicy::Retry(_) => "retry",
+ 		TrafficPolicy::Delay(_) => "delay",
+diff --git a/crates/agentgateway/src/types/local.rs b/crates/agentgateway/src/types/local.rs
+index c6e0bdd..dfbeab1 100644
+--- a/crates/agentgateway/src/types/local.rs
++++ b/crates/agentgateway/src/types/local.rs
+@@ -2935,6 +2935,9 @@ struct LocalFrontendPolicies {
+ #[apply(schema_de!)]
+ #[derive(Default)]
+ pub struct FilterOrPolicy {
++	/// Enforce L402 route caveats while delegating challenges and validation to the backend.
++	#[serde(default)]
++	l402: Option<http::l402::Policy>,
+ 	// Filters. Keep in sync with RouteFilter
+ 	/// Modify request headers before forwarding.
+ 	#[serde(default)]
+@@ -5356,6 +5359,7 @@ pub(crate) async fn split_policies_for_target(
+ 		route_policies,
+ 	} = &mut resolved;
+ 	let FilterOrPolicy {
++		l402,
+ 		request_header_modifier,
+ 		response_header_modifier,
+ 		request_redirect,
+@@ -5576,6 +5580,12 @@ pub(crate) async fn split_policies_for_target(
+ 	}
+ 
+ 	// Traffic policies
++	if let Some(p) = l402 {
++		if backend_target {
++			bail!("l402 is only supported on route-targeted policies");
++		}
++		route_policies.push(TrafficPolicy::L402(RequestPolicy::single(p)));
++	}
+ 	if let Some(p) = buffer {
+ 		route_policies.push(TrafficPolicy::Buffer(RequestPolicy::single(p)));
+ 	}
+
+diff --git a/crates/agentgateway/src/http/l402.rs b/crates/agentgateway/src/http/l402.rs
+new file mode 100644
+index 0000000..069a7a1
+--- /dev/null
++++ b/crates/agentgateway/src/http/l402.rs
+@@ -0,0 +1,67 @@
++use ::http::{HeaderValue, header::HeaderName};
++
++use crate::http::{PolicyResponse, Request};
++use crate::store::RequestPolicyTrait;
++use crate::*;
++
++/// Route-local guard for an Aperture-compatible L402 backend.
++///
++/// This policy deliberately never parses, mints, logs, or persists an L402
++/// credential. The selected route backend remains responsible for returning
++/// `402 WWW-Authenticate` challenges and validating authorized retries.
++#[apply(schema!)]
++pub struct Policy {
++	/// Methods accepted by this paid route, for example `["GET"]`.
++	pub methods: Vec<Strng>,
++	/// Request paths must start with one of these prefixes.
++	pub path_prefixes: Vec<Strng>,
++}
++
++impl RequestPolicyTrait for Policy {
++	async fn apply(
++		&self,
++		_client: &crate::proxy::httpproxy::PolicyClient,
++		_log: &mut crate::telemetry::log::RequestLog,
++		req: &mut Request,
++	) -> Result<PolicyResponse, crate::proxy::ProxyResponse> {
++		if !self.allows(req.method().as_str(), req.uri().path()) {
++			return Err(crate::proxy::ProxyError::AuthorizationFailed.into());
++		}
++		let correlation = HeaderValue::from_str(&uuid::Uuid::new_v4().to_string())
++			.expect("UUID is a valid header value");
++		req.headers_mut().insert(
++			HeaderName::from_static("x-agentgateway-l402-correlation-id"),
++			correlation,
++		);
++		Ok(Default::default())
++	}
++}
++
++impl Policy {
++	fn allows(&self, method: &str, path: &str) -> bool {
++		self
++			.methods
++			.iter()
++			.any(|allowed| allowed.as_str() == method)
++			&& self
++				.path_prefixes
++				.iter()
++				.any(|prefix| path.starts_with(prefix.as_str()))
++	}
++}
++
++#[cfg(test)]
++mod tests {
++	use super::*;
++
++	#[test]
++	fn allows_only_configured_method_and_path_caveats() {
++		let policy = Policy {
++			methods: vec!["GET".into()],
++			path_prefixes: vec!["/ti/indicator/".into(), "/ti/report/".into()],
++		};
++		assert!(policy.allows("GET", "/ti/indicator/198.51.100.1"));
++		assert!(!policy.allows("POST", "/ti/indicator/198.51.100.1"));
++		assert!(!policy.allows("GET", "/ti/campaign/example"));
++	}
++}
+

@@ -4,10 +4,12 @@ set -euo pipefail
 
 context=""
 state_dir=""
+reuse_local_images=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --context) context="$2"; shift 2 ;;
     --state-dir) state_dir="$2"; shift 2 ;;
+    --reuse-local-images) reuse_local_images=true; shift ;;
     *) echo "usage: $0 --context kind-ln-ssdf-phase0 --state-dir ABSOLUTE_PATH" >&2; exit 2 ;;
   esac
 done
@@ -61,15 +63,21 @@ seller_tls_b64="$(k -n ssdf-system exec lnd-primary-0 -c lnd -- sh -c 'base64 < 
 vault_exec vault kv put kv/lnd-primary-l402 invoice.macaroon-b64="$seller_macaroon_b64" tls.cert-b64="$seller_tls_b64" >/dev/null
 unset seller_macaroon_b64 seller_tls_b64 main_root
 
-docker build -t ln-ssdf/ti-product-api:phase9 "$repo_root/services/ti-product-api"
-docker build -t ln-ssdf/payment-buyer:phase9 "$repo_root/services/payment-buyer"
-# The published v0.5.0 Aperture image is amd64-only. Build the exact upstream
-# v0.5.0 source commit locally for the kind node's architecture instead.
-aperture_source_dir="$(mktemp -d /tmp/ln-ssdf-aperture-XXXXXX)"
-aperture_commit="311220b15b04c06ecabd52c78fde8f5d6ea73c82"
-git clone --depth 1 --branch v0.5.0 https://github.com/lightninglabs/aperture.git "$aperture_source_dir" >/dev/null
-[[ "$(git -C "$aperture_source_dir" rev-parse HEAD)" == "$aperture_commit" ]] || { echo "Aperture v0.5.0 source revision mismatch" >&2; exit 1; }
-docker build --build-arg checkout="$aperture_commit" -t ln-ssdf/aperture:phase9 "$aperture_source_dir"
+if [[ "$reuse_local_images" == true ]]; then
+  for image in ln-ssdf/ti-product-api:phase9 ln-ssdf/payment-buyer:phase9 ln-ssdf/aperture:phase9; do
+    docker image inspect "$image" >/dev/null || { echo "missing cached Phase 9 image: $image" >&2; exit 1; }
+  done
+else
+  docker build -t ln-ssdf/ti-product-api:phase9 "$repo_root/services/ti-product-api"
+  docker build -t ln-ssdf/payment-buyer:phase9 "$repo_root/services/payment-buyer"
+  # The published v0.5.0 Aperture image is amd64-only. Build the exact upstream
+  # v0.5.0 source commit locally for the kind node's architecture instead.
+  aperture_source_dir="$(mktemp -d /tmp/ln-ssdf-aperture-XXXXXX)"
+  aperture_commit="311220b15b04c06ecabd52c78fde8f5d6ea73c82"
+  git clone --depth 1 --branch v0.5.0 https://github.com/lightninglabs/aperture.git "$aperture_source_dir" >/dev/null
+  [[ "$(git -C "$aperture_source_dir" rev-parse HEAD)" == "$aperture_commit" ]] || { echo "Aperture v0.5.0 source revision mismatch" >&2; exit 1; }
+  docker build --build-arg checkout="$aperture_commit" -t ln-ssdf/aperture:phase9 "$aperture_source_dir"
+fi
 kind load docker-image --name ln-ssdf-phase0 ln-ssdf/ti-product-api:phase9 ln-ssdf/payment-buyer:phase9 ln-ssdf/aperture:phase9
 k apply -f "$repo_root/manifests/phase9/runtime.yaml"
 k apply -f "$repo_root/manifests/phase9/network-policies.yaml"

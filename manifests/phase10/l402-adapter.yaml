@@ -1,0 +1,171 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: phase10-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: phase10-agentgateway-config
+  namespace: phase10-system
+data:
+  agentgateway.yaml: |
+    binds:
+      - port: 3000
+        listeners:
+          - protocol: HTTP
+            routes:
+              - name: openrouter-openai-compatible
+                matches: [{ path: { pathPrefix: /v1/ } }]
+                policies:
+                  urlRewrite: { path: { prefix: /api/v1/ } }
+                backends:
+                  - host: openrouter.ai:443
+                    policies:
+                      backendTLS: { hostname: openrouter.ai }
+                      requestHeaderModifier:
+                        set: { authorization: "Bearer $LLM_MODEL_API" }
+              - name: paid-ti-via-l402-adapter
+                matches: [{ path: { pathPrefix: /ti/ } }]
+                policies:
+                  l402:
+                    methods: [GET]
+                    pathPrefixes: [/ti/indicator/, /ti/campaign/, /ti/report/]
+                  timeout: { requestTimeout: 5s, backendRequestTimeout: 5s }
+                  urlRewrite: { path: { prefix: /v1/ } }
+                backends:
+                  - host: phase10-l402-adapter.phase10-system.svc.cluster.local:8080
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: phase10-l402-adapter-config
+  namespace: phase10-system
+data:
+  L402_ALLOWED_ROUTES: GET:/v1/indicator/*,GET:/v1/campaign/*,GET:/v1/report/*
+  L402_BACKEND_TIMEOUT_MS: "5000"
+  # Replace only in a local overlay after Phase 9 deploys Aperture. This value is
+  # intentionally not an LND endpoint and the adapter receives no wallet material.
+  L402_BACKEND_URL: http://aperture.ssdf-system.svc:8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: phase10-agentgateway
+  namespace: phase10-system
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: phase10-agentgateway } }
+  template:
+    metadata: { labels: { app: phase10-agentgateway } }
+    spec:
+      containers:
+        - name: agentgateway
+          image: phase10-agentgateway:local
+          imagePullPolicy: Never
+          args: ["-f", "/etc/agentgateway/agentgateway.yaml"]
+          env:
+            - name: LLM_MODEL_API
+              valueFrom: { secretKeyRef: { name: phase10-openrouter, key: LLM_MODEL_API } }
+          ports: [{ name: http, containerPort: 3000 }]
+          volumeMounts: [{ name: config, mountPath: /etc/agentgateway, readOnly: true }]
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] }, runAsNonRoot: true }
+      volumes: [{ name: config, configMap: { name: phase10-agentgateway-config } }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: phase10-agentgateway
+  namespace: phase10-system
+spec:
+  selector: { app: phase10-agentgateway }
+  ports: [{ name: http, port: 3000, targetPort: http }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: phase10-agentgateway-egress
+  namespace: phase10-system
+spec:
+  podSelector: { matchLabels: { app: phase10-agentgateway } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ podSelector: { matchLabels: { app: phase10-l402-adapter } } }]
+      ports: [{ protocol: TCP, port: 8080 }]
+    - to: [{ ipBlock: { cidr: 0.0.0.0/0 } }]
+      ports: [{ protocol: TCP, port: 443 }]
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+          podSelector:
+            matchLabels: { k8s-app: kube-dns }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: phase10-l402-adapter-egress
+  namespace: phase10-system
+spec:
+  podSelector: { matchLabels: { app: phase10-l402-adapter } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: ssdf-system }
+      ports: [{ protocol: TCP, port: 8080 }]
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+          podSelector:
+            matchLabels: { k8s-app: kube-dns }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: phase10-l402-adapter
+  namespace: phase10-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: phase10-l402-adapter }
+  template:
+    metadata:
+      labels: { app: phase10-l402-adapter }
+    spec:
+      containers:
+        - name: adapter
+          image: phase10-l402-adapter:local
+          imagePullPolicy: Never
+          envFrom:
+            - configMapRef: { name: phase10-l402-adapter-config }
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+            runAsNonRoot: true
+            runAsUser: 1000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: phase10-l402-adapter
+  namespace: phase10-system
+spec:
+  selector: { app: phase10-l402-adapter }
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

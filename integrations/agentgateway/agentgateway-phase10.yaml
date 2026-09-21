@@ -1,0 +1,33 @@
+# Verified against AgentGateway's published standalone JSON schema on 2026-09-22.
+# The OpenRouter key is deliberately an environment expansion, never checked in.
+binds:
+  - port: 3000
+    listeners:
+      - protocol: HTTP
+        routes:
+          - name: openrouter-openai-compatible
+            matches:
+              - path: { pathPrefix: /v1/ }
+            policies:
+              # OpenRouter's OpenAI-compatible endpoint lives below /api/v1.
+              urlRewrite:
+                path: { prefix: /api/v1/ }
+            backends:
+              - host: openrouter.ai:443
+                policies:
+                  backendTLS: { hostname: openrouter.ai }
+                  requestHeaderModifier:
+                    set:
+                      authorization: "Bearer $LLM_MODEL_API"
+          - name: paid-ti-via-l402-adapter
+            matches:
+              - path: { pathPrefix: /ti/ }
+            policies:
+              l402:
+                methods: [GET]
+                pathPrefixes: [/ti/indicator/, /ti/campaign/, /ti/report/]
+              timeout: { requestTimeout: 5s, backendRequestTimeout: 5s }
+              urlRewrite:
+                path: { prefix: /v1/ }
+            backends:
+              - host: phase10-l402-adapter.phase10-system.svc.cluster.local:8080
