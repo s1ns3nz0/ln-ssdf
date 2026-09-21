@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chaos-testing
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: phase12-ti-api-pod-failure
+  namespace: chaos-testing
+spec:
+  action: pod-failure
+  mode: one
+  duration: 90s
+  selector:
+    namespaces: [opencti-system]
+    labelSelectors: { app: ti-product-api }
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: phase12-ti-api-latency
+  namespace: chaos-testing
+spec:
+  action: delay
+  mode: one
+  duration: 120s
+  selector:
+    namespaces: [opencti-system]
+    labelSelectors: { app: ti-product-api }
+  direction: to
+  delay: { latency: 500ms, jitter: 50ms, correlation: "100" }

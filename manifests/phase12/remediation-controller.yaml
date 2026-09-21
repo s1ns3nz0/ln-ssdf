@@ -1,0 +1,128 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: remediation-controller
+  namespace: ssdf-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: remediation-controller
+  namespace: ssdf-system
+rules:
+  - apiGroups: [aiops.ln-ssdf.io]
+    resources: [remediationrequests]
+    verbs: [get, list, watch, create]
+  - apiGroups: [aiops.ln-ssdf.io]
+    resources: [remediationrequests/status]
+    verbs: [patch, update]
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [otel-collector]
+    verbs: [get, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: remediation-controller
+  namespace: ssdf-system
+subjects:
+  - kind: ServiceAccount
+    name: remediation-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: remediation-controller
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: remediation-request-approver
+  namespace: ssdf-system
+rules:
+  - apiGroups: [aiops.ln-ssdf.io]
+    resources: [remediationrequests]
+    verbs: [get, list, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: remediation-controller-opencti
+  namespace: opencti-system
+rules:
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [ti-product-api, opencti-application]
+    verbs: [get, patch]
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: remediation-controller-opencti
+  namespace: opencti-system
+subjects:
+  - kind: ServiceAccount
+    name: remediation-controller
+    namespace: ssdf-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: remediation-controller-opencti
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: remediation-controller-aperture
+  namespace: ssdf-system
+rules:
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [aperture]
+    verbs: [get, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: remediation-controller-aperture
+  namespace: ssdf-system
+subjects:
+  - kind: ServiceAccount
+    name: remediation-controller
+    namespace: ssdf-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: remediation-controller-aperture
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: remediation-controller
+  namespace: ssdf-system
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: remediation-controller } }
+  template:
+    metadata: { labels: { app: remediation-controller } }
+    spec:
+      serviceAccountName: remediation-controller
+      containers:
+        - name: controller
+          image: ln-ssdf/remediation-controller:phase12
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: KAGENT_A2A_URL
+              value: http://kagent-controller.kagent.svc.cluster.local:8083/api/a2a/kagent/phase12-aiops/
+          ports: [{ name: http, containerPort: 8080 }]
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 1000, runAsGroup: 1000, capabilities: { drop: [ALL] } }
+          readinessProbe: { httpGet: { path: /healthz, port: http } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: remediation-controller, namespace: ssdf-system }
+spec:
+  selector: { app: remediation-controller }
+  ports: [{ name: http, port: 8080, targetPort: http }]

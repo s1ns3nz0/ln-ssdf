@@ -1,0 +1,96 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kagent
+---
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata:
+  name: phase12-agentgateway-free
+  namespace: kagent
+spec:
+  provider: OpenAI
+  model: openrouter/free
+  apiKeySecret: phase12-gateway-placeholder
+  apiKeySecretKey: OPENAI_API_KEY
+  openAI:
+    baseUrl: http://phase10-agentgateway.phase10-system.svc.cluster.local:3000/v1
+---
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
+metadata:
+  name: phase12-remediation-controller
+  namespace: kagent
+spec:
+  description: Bounded Phase 12 diagnosis and pending proposal tools
+  protocol: STREAMABLE_HTTP
+  timeout: 10s
+  url: http://remediation-controller.ssdf-system.svc.cluster.local:8080/mcp
+---
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
+metadata:
+  name: phase12-operator-context
+  namespace: kagent
+spec:
+  description: Redacted metrics and alert summaries only
+  protocol: STREAMABLE_HTTP
+  timeout: 10s
+  url: http://operator-context.ssdf-system.svc.cluster.local:8080/mcp
+---
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: phase12-aiops
+  namespace: kagent
+spec:
+  description: Bounded, read-only node operations diagnosis that proposes but never approves remediation.
+  type: Declarative
+  declarative:
+    modelConfig: phase12-agentgateway-free
+    stream: false
+    systemMessage: |-
+      You are the Phase 12 AIOps diagnosis agent.
+      Rules are mandatory:
+      - Diagnose only alerts TiProductFailureRateHigh, TiApiAvailabilityLow, and TiApiScrapeDown.
+      - Use only the redacted operator-context and remediation-controller tools.
+      - At most three tool/reasoning rounds and one concurrent run.
+      - Never read raw logs, Secrets, payment material, TI documents, or execute shell commands.
+      - Never patch, restart, rollback, delete, or approve any resource.
+      - If recovery is justified, call propose_remediation exactly once with approved:false and approvedBy:pending.
+      - The proposal may target only restartDeployment for aperture, ti-api, otel-collector, opencti-application,
+        or rollbackHelmRelease for ti-api. State that an operator must approve the Kubernetes resource separately.
+      - Unknown, stale, resolved, or ambiguous alerts become NeedsHuman.
+    tools:
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: phase12-operator-context
+          toolNames: [operator_context]
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: phase12-remediation-controller
+          toolNames: [diagnose_alert, propose_remediation]
+    a2aConfig:
+      skills:
+        - id: bounded-incident-diagnosis
+          name: Bounded incident diagnosis
+          description: Diagnose one allowlisted alert and create at most one pending remediation proposal.
+          tags: [aiops, ti-api]
+          examples: ["Diagnose the current TI API availability alert."]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: phase12-kagent-to-operator-context
+  namespace: ssdf-system
+spec:
+  podSelector: { matchLabels: { app: operator-context } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kagent } }
+      ports: [{ protocol: TCP, port: 8080 }]

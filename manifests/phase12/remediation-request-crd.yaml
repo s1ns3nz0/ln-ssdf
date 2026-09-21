@@ -1,0 +1,61 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: remediationrequests.aiops.ln-ssdf.io
+spec:
+  group: aiops.ln-ssdf.io
+  scope: Namespaced
+  names:
+    plural: remediationrequests
+    singular: remediationrequest
+    kind: RemediationRequest
+    shortNames: [rr]
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          required: [spec]
+          properties:
+            spec:
+              type: object
+              x-kubernetes-validations:
+                - rule: "self.action != 'rollbackHelmRelease' || self.target == 'ti-api'"
+                  message: rollbackHelmRelease is only allowed for ti-api
+                - rule: "self.target in ['aperture', 'otel-collector'] ? self.namespace == 'ssdf-system' : self.namespace == 'opencti-system'"
+                  message: target must use its declared namespace
+              required: [action, target, namespace, approved, approvedBy, approvalExpiresAt]
+              properties:
+                action: { type: string, enum: [restartDeployment, rollbackHelmRelease] }
+                target: { type: string, enum: [aperture, ti-api, otel-collector, opencti-application] }
+                namespace: { type: string, enum: [ssdf-system, opencti-system] }
+                release: { type: string }
+                reason: { type: string, maxLength: 500 }
+                approved: { type: boolean, default: false }
+                approvedBy: { type: string, minLength: 1, maxLength: 253, pattern: '^[A-Za-z0-9._:@/-]+$' }
+                approvalExpiresAt: { type: string, format: date-time }
+            status:
+              type: object
+              properties:
+                phase: { type: string, enum: [Pending, Succeeded, Failed, NeedsHuman] }
+                reason: { type: string, maxLength: 500 }
+                correlationId: { type: string, pattern: '^[a-f0-9]{32}$' }
+                approvalEvidence:
+                  type: object
+                  properties:
+                    operatorIdentity: { type: string, maxLength: 253 }
+                    target: { type: string }
+                    action: { type: string }
+                evidence:
+                  type: object
+                  required: [event, subject, outcome, endpoint, amount_sat, correlation_id]
+                  properties:
+                    event: { type: string, enum: [diagnosis, remediation, approval, chaos, recovery] }
+                    subject: { type: string }
+                    outcome: { type: string, enum: [passed, failed, pending, needs_human] }
+                    endpoint: { type: string }
+                    amount_sat: { type: integer, minimum: 0, maximum: 200 }
+                    correlation_id: { type: string, pattern: '^[a-f0-9]{32}$' }
+      subresources: { status: {} }

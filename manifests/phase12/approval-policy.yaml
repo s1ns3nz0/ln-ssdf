@@ -1,0 +1,27 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: remediation-request-approval-boundary
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [aiops.ln-ssdf.io]
+        apiVersions: [v1alpha1]
+        operations: [CREATE, UPDATE]
+        resources: [remediationrequests]
+  validations:
+    - expression: "request.operation != 'CREATE' || object.spec.approved == false"
+      message: RemediationRequest must be created pending approval
+    - expression: "request.operation == 'CREATE' || !oldObject.spec.approved || object.spec == oldObject.spec"
+      message: approved RemediationRequest spec is immutable
+    - expression: "object.spec.approved == false || (object.spec.approvedBy != '' && object.spec.approvalExpiresAt != '')"
+      message: approval requires operator identity and expiry
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: remediation-request-approval-boundary
+spec:
+  policyName: remediation-request-approval-boundary
+  validationActions: [Deny]

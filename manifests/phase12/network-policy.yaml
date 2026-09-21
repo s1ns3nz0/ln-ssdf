@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: remediation-controller-local-only
+  namespace: ssdf-system
+spec:
+  podSelector: { matchLabels: { app: remediation-controller } }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: alertmanager } }
+        - podSelector: { matchLabels: { app: kagent } }
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kagent } }
+      ports: [{ protocol: TCP, port: 8080 }]
+  egress:
+    - to:
+        # Keep the destination bounded to kagent's namespace; chart label names
+        # vary across kagent 0.x releases, so do not make connectivity depend on
+        # an optional controller label.
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kagent } }
+      ports: [{ protocol: TCP, port: 8083 }]
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { component: kube-apiserver } }
+      ports: [{ protocol: TCP, port: 443 }]
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]
