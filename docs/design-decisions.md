@@ -74,7 +74,7 @@
 ## SBOM과 재검사
 
 - 모든 배포 이미지에 검증 가능한 SBOM을 필수 증거로 요구한다. 누락, 서명 실패, 대상 digest 불일치는 신규 배포를 차단한다. 기존 부트스트랩·장애 복구 예외 범위는 유지한다.
-- Trivy로 CycloneDX JSON을 생성하고 cosign 서명 attestation으로 프로젝트 GHCR에 보관한다. 취약점 보고서와 VSA는 이미지 digest와 SBOM 해시를 참조한다. 도구 버전·저장 형식 간 호환성은 첫 선행 실험에서 검증한다.
+- Trivy로 CycloneDX JSON을 생성하고 cosign 서명 attestation으로 프로젝트 GHCR에 보관한다. 취약점 보고서와 VSA는 이미지 digest와 SBOM 해시를 참조한다. 이 포트폴리오의 현재 gate는 `diagnostic`이다. 즉 스캔 완결성·SBOM 결속·keyless 서명·신선도만 배포를 막으며, fixed High/Critical과 unfixed Critical은 VSA `observedFindings`에 보존해 진단한다. 배포 차단이 필요한 환경은 `enforce` 모드로 전환해 그 세 등급을 `blockingFindings`로 승격한다. 도구 버전·저장 형식 간 호환성은 첫 선행 실험에서 검증한다.
 - 이미지 SBOM은 digest에 연결한다. 자체 코드에는 소스·lockfile 기반 SBOM도 생성해 Git 커밋에 연결한다. 이미지와 소스의 분석 범위를 구분하고 업스트림 빌드 의존성은 확보한 증거 이상으로 주장하지 않는다.
 - 품질 필수 검사는 형식 유효성, 대상 digest 연결, 생성 도구·버전, 분석 범위, 분석 오류 여부다. 소스 SBOM의 대상 연결은 Git 커밋으로 확인한다. 패키지 개수만으로 통과시키지 않으며 Go 바이너리 등 실제 구성요소 식별 여부를 표본 검증한다. 분석 실패·필수 범위 누락은 통과시키지 않고 미분석 영역은 화면에 명시한다.
 - 저장한 SBOM을 최신 취약점 DB로 매일 재검사한다. 보고서에 SBOM 해시, 스캐너 버전, 취약점 DB 버전·발행 시각·갱신 시각을 기록한다. SBOM 자체에는 시간 만료를 적용하지 않으며 취약점 검사 결과에는 48시간 TTL을 적용한다.

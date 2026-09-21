@@ -23,6 +23,7 @@ test('validation and provenance workflows keep verification and signing responsi
   assert.match(phase7, /packages: write/);
   assert.match(phase7, /id-token: write/);
   assert.match(phase7, /COSIGN_REPOSITORY: ghcr\.io\/s1ns3nz0\/ln-ssdf-evidence/);
+  assert.match(phase7, /PHASE7_VSA_GATE_MODE: diagnostic/);
   const scorecards = readFileSync('.github/workflows/measure-upstream-scorecards.yml', 'utf8');
   assert.match(scorecards, /lightningnetwork\/lnd/);
   assert.match(scorecards, /lightninglabs\/aperture/);

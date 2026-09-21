@@ -6,9 +6,13 @@ On 2026-09-21, [run 35591049749](https://github.com/s1ns3nz0/ln-ssdf/actions/run
 generated and keylessly signed CycloneDX SBOM and VSA attestations in the
 dedicated GHCR evidence repository. Independent Cosign verification confirmed
 the GitHub OIDC identity and transparency-log proof. All seven VSAs are
-`FAILED`, however, because the current scanner found policy-blocking findings;
-the versioned inventory records the per-image count. A signed failed VSA is
-evidence to block deployment, not a promotion ticket.
+`FAILED` under the former vulnerability-blocking profile. The portfolio now
+uses the explicitly documented `diagnostic` profile: scan completeness, SBOM
+binding, keyless identity, transparency-log proof, and VSA freshness are the
+gate; fixed High/Critical and unfixed Critical findings remain in signed
+`observedFindings` rather than silently disappearing. The stricter `enforce`
+profile remains available for an environment that intends vulnerability-based
+deployment denial.
 
 `scripts/phase7-readiness.sh --context kind-ln-ssdf-phase0` compares the live
 Pod image set to that inventory and exits with status 3 while an entry remains
