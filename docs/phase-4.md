@@ -1,7 +1,8 @@
 # Phase 4 — ArgoCD GitOps cutover gate
 
-**Status: not started.** This document is an implementation contract, not evidence
-that ArgoCD or GitOps is running.
+**Status: passed (2026-09-21, local kind).** This result proves the local GitOps
+mechanics described below; it does not claim that the local unauthenticated Git
+daemon is a production source-control service.
 
 ## Boundary
 
@@ -48,3 +49,12 @@ The local drill uses a PVC-backed in-cluster Git daemon, populated from a local
 commit during bootstrap. ArgoCD talks to `git://git-server.gitops-system.svc`,
 not a host path. This proves the local Git protocol and reconciliation boundary;
 the unauthenticated daemon is not a production source-control service.
+
+The completed rebuild drill created an empty `ln-ssdf-phase0` cluster, restored
+the approved Vault state and runtime-only Secrets, rebuilt the Phase 2 Lightning
+and Phase 3 scrape gates, then installed ArgoCD from the verified 10.9.2 chart
+package. All Git-sourced Applications reported `Synced` and `Healthy` at commit
+`1161e5ef2d5adc8a47ad075e0d422f81f2a8ebad`. A committed probe change from
+`revision: "1"` to `revision: "2"` reached the live ConfigMap. The bootstrap
+gate also changed that ConfigMap out of band and required ArgoCD self-heal to
+restore the committed value.
