@@ -11,4 +11,8 @@ test('CI pins actions and reserves keyless signing for main pushes', () => {
   const verifier = readFileSync('scripts/verify-ci-provenance.sh', 'utf8');
   assert.match(verifier, /--certificate-oidc-issuer 'https:\/\/token\.actions\.githubusercontent\.com'/);
   assert.match(verifier, /github\.com\/\$\{repository\}\/.github\/workflows\/ci\.yml@refs\/heads\/main/);
+  const phase7 = readFileSync('.github/workflows/phase7-image-evidence.yml', 'utf8');
+  assert.match(phase7, /packages: write/);
+  assert.match(phase7, /id-token: write/);
+  assert.match(phase7, /COSIGN_REPOSITORY: ghcr\.io\/s1ns3nz0\/ln-ssdf-evidence/);
 });
