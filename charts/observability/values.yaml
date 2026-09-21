@@ -9,3 +9,6 @@ postgresExporter:
   image: prometheuscommunity/postgres-exporter:v0.17.1@sha256:38606faa38c54787525fb0ff2fd6b41b4cfb75d455c1df294927c5f611699b17
 storage:
   size: 5Gi
+phase11:
+  enabled: false
+  alertmanagerImage: prom/alertmanager:v0.28.1@sha256:220da6995a919b9ee6e0d3da7ca5f09802f3088007af56be22160314d2485b54

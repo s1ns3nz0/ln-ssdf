@@ -11,8 +11,18 @@ data:
         static_configs: [{ targets: ["lnd-primary.ssdf-system.svc:9092"] }]
       - job_name: postgres
         static_configs: [{ targets: ["postgres-exporter:9187"] }]
+    {{- if .Values.phase11.enabled }}
+      - job_name: ti-product-api
+        static_configs: [{ targets: ["ti-product-api.opencti-system.svc:8080"] }]
+    {{- end }}
     rule_files:
       - /etc/prometheus/rules/*.yaml
+      - /etc/prometheus/rules/phase11/*.yaml
+    {{- if .Values.phase11.enabled }}
+    alerting:
+      alertmanagers:
+        - static_configs: [{ targets: ["alertmanager:9093"] }]
+    {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -29,6 +39,69 @@ data:
             annotations:
               summary: SSDF evidence hash chain verification failed
               description: A PostgreSQL evidence row no longer matches its append-only hash chain.
+---
+{{- if .Values.phase11.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: phase11-prometheus-rules }
+data:
+  phase11.yaml: |
+    groups:
+      - name: ssdf-phase11
+        rules:
+          - alert: TiProductFailureRateHigh
+            expr: sum(increase(ti_product_failures_total[15m])) / clamp_min(sum(increase(ti_product_authorized_accesses_total[15m])) + sum(increase(ti_product_failures_total[15m])), 1) > 0.05
+            for: 5m
+            labels: { severity: warning }
+          - alert: TiApiAvailabilityLow
+            expr: sum(increase(ti_product_authorized_accesses_total[15m])) / clamp_min(sum(increase(ti_product_authorized_accesses_total[15m])) + sum(increase(ti_product_failures_total[15m])), 1) < 0.95
+            for: 5m
+            labels: { severity: critical }
+          - alert: TelemetryExportFailed
+            expr: increase(otelcol_exporter_send_failed_log_records[15m]) + increase(otelcol_exporter_send_failed_spans[15m]) > 0
+            for: 5m
+            labels: { severity: warning }
+          - alert: TelemetryRedactionFailed
+            expr: increase(ssdf_telemetry_redaction_failures_total[15m]) > 0
+            for: 0m
+            labels: { severity: critical }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: alertmanager-config }
+data:
+  alertmanager.yml: |
+    route: { receiver: local-operator-context }
+    receivers:
+      - name: local-operator-context
+        webhook_configs: [{ url: http://operator-context:8080/alertmanager }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: alertmanager }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: alertmanager } }
+  template:
+    metadata: { labels: { app: alertmanager } }
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: alertmanager
+          image: {{ .Values.phase11.alertmanagerImage | quote }}
+          args: ["--config.file=/etc/alertmanager/alertmanager.yml"]
+          ports: [{ name: http, containerPort: 9093 }]
+          readinessProbe: { httpGet: { path: /-/ready, port: http }, initialDelaySeconds: 5 }
+          volumeMounts: [{ name: config, mountPath: /etc/alertmanager, readOnly: true }]
+      volumes: [{ name: config, configMap: { name: alertmanager-config } }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: alertmanager }
+spec:
+  selector: { app: alertmanager }
+  ports: [{ name: http, port: 9093, targetPort: http }]
+{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -93,16 +166,22 @@ spec:
       containers:
         - name: prometheus
           image: {{ .Values.prometheus.image | quote }}
-          args: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus"]
+          args: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus", "--storage.tsdb.retention.time=7d"]
           ports: [{ name: http, containerPort: 9090 }]
           readinessProbe: { httpGet: { path: /-/ready, port: http }, initialDelaySeconds: 10 }
           volumeMounts:
             - { name: config, mountPath: /etc/prometheus }
             - { name: rules, mountPath: /etc/prometheus/rules, readOnly: true }
+            {{- if .Values.phase11.enabled }}
+            - { name: phase11-rules, mountPath: /etc/prometheus/rules/phase11, readOnly: true }
+            {{- end }}
             - { name: data, mountPath: /prometheus }
       volumes:
         - { name: config, configMap: { name: prometheus-config } }
         - { name: rules, configMap: { name: prometheus-rules } }
+        {{- if .Values.phase11.enabled }}
+        - { name: phase11-rules, configMap: { name: phase11-prometheus-rules } }
+        {{- end }}
         - { name: data, persistentVolumeClaim: { claimName: prometheus-data } }
 ---
 apiVersion: v1

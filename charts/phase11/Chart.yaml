@@ -1,0 +1,5 @@
+apiVersion: v2
+name: phase11-observability
+description: Additive local Loki, Tempo, OpenTelemetry Collector, dashboards, and alert rules for Phase 11.
+type: application
+version: 0.1.0

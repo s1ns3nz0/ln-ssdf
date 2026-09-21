@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: operator-context, namespace: ssdf-system }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: operator-context } }
+  template:
+    metadata: { labels: { app: operator-context } }
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: operator-context
+          image: operator-context:phase11
+          imagePullPolicy: IfNotPresent
+          ports: [{ name: http, containerPort: 8080 }]
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 1000, capabilities: { drop: [ALL] } }
+          readinessProbe: { httpGet: { path: /healthz, port: http } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: operator-context, namespace: ssdf-system }
+spec:
+  selector: { app: operator-context }
+  ports: [{ name: http, port: 8080, targetPort: http }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: operator-context-bounded, namespace: ssdf-system }
+spec:
+  podSelector: { matchLabels: { app: operator-context } }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app: alertmanager } } }]
+      ports: [{ protocol: TCP, port: 8080 }]
+    - from: [{ podSelector: { matchLabels: { app: kagent } } }]
+      ports: [{ protocol: TCP, port: 8080 }]
+  egress:
+    - to: [{ podSelector: { matchLabels: { app: prometheus } } }]
+      ports: [{ protocol: TCP, port: 9090 }]

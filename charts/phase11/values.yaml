@@ -1,0 +1,9 @@
+images:
+  loki: grafana/loki:3.5.0@sha256:2cbddd6e199a2ddeee13573d91f11e54d9c8fa432f44c578d3c55b9a93278c9f
+  tempo: grafana/tempo:2.7.2@sha256:9b89af53103f8ea7ee19e33951c82f826b8c873baf89cf04d49c69fed76b737e
+  otelCollector: otel/opentelemetry-collector-contrib:0.130.1@sha256:ccef8f32edc59c404367c5d68e6e63b4c46682bb30fc5b6b226b55bdf5301247
+storage:
+  size: 5Gi
+retention:
+  logs: 72h
+  traces: 72h

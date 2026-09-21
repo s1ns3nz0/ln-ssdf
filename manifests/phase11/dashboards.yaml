@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: phase11-dashboard-overview, namespace: ssdf-system }
+data:
+  dashboard.json: |-
+    {"dashboard":{"uid":"phase11-overview","title":"Node Operations / Overview","schemaVersion":41,"panels":[{"type":"stat","title":"Healthy Prometheus targets","targets":[{"expr":"sum(up == 1)"}]},{"type":"stat","title":"Critical alerts","targets":[{"expr":"count(ALERTS{alertstate=\"firing\",severity=\"critical\"})"}]},{"type":"timeseries","title":"TI product authorized access rate","targets":[{"expr":"sum(rate(ti_product_authorized_accesses_total[5m]))"}]}]},"overwrite":true}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: phase11-dashboard-marketplace, namespace: ssdf-system }
+data:
+  dashboard.json: |-
+    {"dashboard":{"uid":"phase11-marketplace","title":"Node Operations / TI Marketplace","schemaVersion":41,"panels":[{"type":"timeseries","title":"Authorized TI accesses","targets":[{"expr":"sum(rate(ti_product_authorized_accesses_total[5m]))"}]},{"type":"timeseries","title":"TI product failures","targets":[{"expr":"sum(rate(ti_product_failures_total[5m]))"}]},{"type":"stat","title":"TI API scrape health","targets":[{"expr":"up{job=\"ti-product-api\"}"}]}]},"overwrite":true}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: phase11-dashboard-investigation, namespace: ssdf-system }
+data:
+  dashboard.json: |-
+    {"dashboard":{"uid":"phase11-investigation","title":"Node Operations / Service Investigation","schemaVersion":41,"panels":[{"type":"logs","title":"Redacted service logs","datasource":{"type":"loki","uid":"phase11-loki"},"targets":[{"expr":"{service_name=~\".+\"}"}]},{"type":"traces","title":"Trace lookup","datasource":{"type":"tempo","uid":"phase11-tempo"},"targets":[]}]},"overwrite":true}
