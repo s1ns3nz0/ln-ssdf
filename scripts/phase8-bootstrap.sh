@@ -19,6 +19,9 @@ kubectl --context "$context" -n ssdf-system exec -i ssdf-postgres-0 -- \
 kubectl --context "$context" -n ssdf-system exec ssdf-postgres-0 -- \
   psql -U postgres -d ssdf -v ON_ERROR_STOP=1 -c 'GRANT CONNECT ON DATABASE ssdf TO postgres_monitor;' >/dev/null
 kubectl --context "$context" -n ssdf-system rollout status deployment/postgres-exporter --timeout=180s
+# Prometheus does not watch ConfigMap-mounted rule files by itself. Reload the
+# Git-synced rule revision before asserting that the alert path is live.
+kubectl --context "$context" -n ssdf-system rollout restart deployment/prometheus >/dev/null
 kubectl --context "$context" -n ssdf-system rollout status deployment/prometheus --timeout=180s
 
 for _ in $(seq 1 15); do

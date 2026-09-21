@@ -12,6 +12,11 @@ a dedicated local fixture, bypasses its append-only trigger to model a manual
 PostgreSQL mutation, proves verifier → metric → firing alert, then restores the
 original fixture claim.
 
+The bootstrap performs a controlled Prometheus restart after Argo CD sync,
+because the base Prometheus process does not watch mounted rule files. The
+chart's Recreate strategy prevents two writers from opening the single TSDB PVC
+during that restart.
+
 The alert is visible in Prometheus only. No Alertmanager receiver or external
 notification channel is configured, so this does not claim paging delivery.
 Rekor remains authoritative for signed attestations: a database superuser who
