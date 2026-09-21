@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata: { name: prometheus-config }
 data:
   prometheus.yml: |
-    global: { scrape_interval: 15s }
+    global: { scrape_interval: 15s, evaluation_interval: 15s }
     scrape_configs:
       - job_name: lnd
         static_configs: [{ targets: ["lnd-primary.ssdf-system.svc:8989", "lnd-peer.ssdf-system.svc:8989"] }]
@@ -23,7 +23,7 @@ data:
       - name: ssdf-evidence-integrity
         rules:
           - alert: SsdfEvidenceTamperDetected
-            expr: pg_ssdf_evidence_chain_tamper_detected > 0
+            expr: ssdf_evidence_chain_tamper_detected > 0
             for: 0m
             labels: { severity: critical }
             annotations:
