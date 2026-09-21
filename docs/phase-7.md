@@ -23,3 +23,9 @@ proves a compatible admission fixture only; it does not supply this production
 evidence. Current remediation requires compatible image upgrades followed by a
 fresh scan and VSA. Phase 5 GitHub OIDC source provenance is verified, but it is
 neither an image signature nor the SBOM/VSA evidence required for promotion.
+
+`measure-upstream-scorecards.yml` separately measures the two agreed source
+repositories, `lightningnetwork/lnd` and `lightninglabs/aperture`, daily and on
+manual dispatch. Each result is a retained JSON artifact. Scorecard is a source
+posture measurement; it does not make an image VSA pass and does not expand the
+runtime-image evidence scope to aperture before it is deployed.
