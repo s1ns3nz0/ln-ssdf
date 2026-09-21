@@ -20,6 +20,12 @@ GitHub Actions OIDC identity and transparency-log proof, then promoted to
 `verified` in the inventory. The workflow reissues the evidence daily, within
 the 48-hour VSA lifetime.
 
+`scripts/phase7-enforce-drill.sh --context kind-ln-ssdf-phase0` applies the
+narrow `ssdf-policy-test` Enforce policy and server-dry-runs the signed LND
+fixture. The policy verifies the GitHub OIDC issuer and Rekor entry for both
+the CycloneDX SBOM and the `PASSED` diagnostic VSA, including the VSA's exact
+SBOM digest. It does not select `ssdf-system`.
+
 `scripts/phase7-readiness.sh --context kind-ln-ssdf-phase0` compares the live
 Pod image set to that inventory and exits with status 3 while an entry remains
 unverified. It exits 1 if an unreviewed image appears. Both outcomes block

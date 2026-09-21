@@ -1,0 +1,57 @@
+# Narrow, isolated admission proof for the current LND evidence set. This is
+# intentionally not selected by ssdf-system; promotion there requires a
+# separate rollout after the diagnostic contract is re-verified.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: ssdf-enforce-diagnostic-lnd-isolated
+spec:
+  validationFailureAction: Enforce
+  background: false
+  webhookTimeoutSeconds: 30
+  rules:
+    - name: require-current-keyless-sbom-and-diagnostic-vsa
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [ssdf-policy-test]
+      verifyImages:
+        - imageReferences:
+            - lightninglabs/lnd:v0.18.5-beta@sha256:2b560c9beb559c57ab2f2da1dfed80d286cf11a6dc6e4354cab84aafba79b6f6
+          required: true
+          verifyDigest: true
+          mutateDigest: false
+          useCache: false
+          attestations:
+            - type: https://cyclonedx.org/bom
+              attestors:
+                - count: 1
+                  entries:
+                    - keyless:
+                        subject: https://github.com/s1ns3nz0/ln-ssdf/.github/workflows/phase7-image-evidence.yml@refs/heads/main
+                        issuer: https://token.actions.githubusercontent.com
+                        rekor:
+                          url: https://rekor.sigstore.dev
+                      repository: ghcr.io/s1ns3nz0/ln-ssdf-evidence
+            - type: https://slsa.dev/verification_summary/v1
+              conditions:
+                - all:
+                    - key: "{{ verificationResult }}"
+                      operator: Equals
+                      value: PASSED
+                    - key: "{{ time_before('{{ time_now_utc() }}','{{ expiresAt }}') }}"
+                      operator: Equals
+                      value: true
+                    - key: "{{ inputAttestations[?uri == 'urn:ln-ssdf:sbom:cyclonedx'].digest.sha256 | [0] }}"
+                      operator: Equals
+                      value: 6ee0a50f48591c9ec04e4186d6379a4b2ef0c063163dffd04aef4a9019f6e426
+              attestors:
+                - count: 1
+                  entries:
+                    - keyless:
+                        subject: https://github.com/s1ns3nz0/ln-ssdf/.github/workflows/phase7-image-evidence.yml@refs/heads/main
+                        issuer: https://token.actions.githubusercontent.com
+                        rekor:
+                          url: https://rekor.sigstore.dev
+                      repository: ghcr.io/s1ns3nz0/ln-ssdf-evidence

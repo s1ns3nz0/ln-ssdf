@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const inventory = readFileSync('manifests/phase7/image-evidence-inventory.yaml', 'utf8');
 const gate = readFileSync('scripts/phase7-readiness.sh', 'utf8');
+const enforcePolicy = readFileSync('manifests/phase7/diagnostic-enforce-policy.yaml', 'utf8');
 
 test('Phase 7 inventory promotes every image after independent evidence verification', () => {
   assert.equal((inventory.match(/^      status: verified$/gm) ?? []).length, 7);
@@ -16,4 +17,13 @@ test('Phase 7 readiness blocks both image drift and missing verification evidenc
   assert.match(gate, /exit 1/);
   assert.match(gate, /not verified/);
   assert.match(gate, /exit 3/);
+});
+
+test('Phase 7 isolated Enforce policy binds a keyless VSA to its admitted SBOM', () => {
+  assert.match(enforcePolicy, /validationFailureAction: Enforce/);
+  assert.match(enforcePolicy, /namespaces: \[ssdf-policy-test\]/);
+  assert.match(enforcePolicy, /issuer: https:\/\/token\.actions\.githubusercontent\.com/);
+  assert.match(enforcePolicy, /url: https:\/\/rekor\.sigstore\.dev/);
+  assert.match(enforcePolicy, /verificationResult/);
+  assert.match(enforcePolicy, /urn:ln-ssdf:sbom:cyclonedx/);
 });
