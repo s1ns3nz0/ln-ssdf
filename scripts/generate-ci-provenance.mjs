@@ -1,0 +1,10 @@
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+const output = process.argv[2];
+if (!output) throw new Error('usage: generate-ci-provenance.mjs OUTPUT.json');
+const run = (args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
+const commit = process.env.GITHUB_SHA || run(['rev-parse', 'HEAD']);
+const tree = run(['rev-parse', `${commit}^{tree}`]);
+const statement = {_type: 'https://in-toto.io/Statement/v1', subject: [{name: 'ln-ssdf-source', digest: {gitTree: tree}}], predicateType: 'https://ln-ssdf.dev/ci-provenance/v1', predicate: {commit, repository: process.env.GITHUB_REPOSITORY || 'local', workflow: process.env.GITHUB_WORKFLOW || 'local-verification', runId: process.env.GITHUB_RUN_ID || 'local'}};
+const destination = resolve(output); mkdirSync(dirname(destination), {recursive: true}); writeFileSync(destination, `${JSON.stringify(statement, null, 2)}\n`, {mode: 0o600});
