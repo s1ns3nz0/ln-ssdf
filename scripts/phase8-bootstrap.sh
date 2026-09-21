@@ -23,7 +23,7 @@ kubectl --context "$context" -n ssdf-system rollout status deployment/prometheus
 
 for _ in $(seq 1 15); do
   metric="$(kubectl --context "$context" -n ssdf-system exec deploy/postgres-exporter -- sh -c \
-    'wget -qO- http://127.0.0.1:9187/metrics | awk "$1 == \"ssdf_evidence_chain_tamper_detected\" { print $2 }"')"
+    "wget -qO- http://127.0.0.1:9187/metrics | grep '^ssdf_evidence_chain_tamper_detected' | cut -d' ' -f2")"
   [[ "$metric" == "0" ]] && break
   sleep 3
 done

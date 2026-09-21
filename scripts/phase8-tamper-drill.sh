@@ -33,7 +33,7 @@ broken="$(k exec ssdf-postgres-0 -- psql -U postgres -d ssdf -Atc 'SELECT valid:
 
 for _ in $(seq 1 15); do
   metric="$(k exec deploy/postgres-exporter -- sh -c \
-    'wget -qO- http://127.0.0.1:9187/metrics | awk "$1 == \"ssdf_evidence_chain_tamper_detected\" { print $2 }"')"
+    "wget -qO- http://127.0.0.1:9187/metrics | grep '^ssdf_evidence_chain_tamper_detected' | cut -d' ' -f2")"
   [[ "$metric" == "1" ]] && break
   sleep 3
 done
@@ -56,7 +56,7 @@ ALTER TABLE evidence ENABLE TRIGGER evidence_append_only;
 SQL
 for _ in $(seq 1 15); do
   metric="$(k exec deploy/postgres-exporter -- sh -c \
-    'wget -qO- http://127.0.0.1:9187/metrics | awk "$1 == \"ssdf_evidence_chain_tamper_detected\" { print $2 }"')"
+    "wget -qO- http://127.0.0.1:9187/metrics | grep '^ssdf_evidence_chain_tamper_detected' | cut -d' ' -f2")"
   [[ "$metric" == "0" ]] && break
   sleep 3
 done
