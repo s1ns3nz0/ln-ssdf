@@ -38,6 +38,8 @@ test('generated mock records keep posture, telemetry, and remediation evidence c
   assert.equal(projection.records.length, dashboard.records.length);
   for (const record of dashboard.records) {
     const label = `${record.projectId}/${record.id}`;
+    const reviewerText = [record.telemetryReason, ...record.blockers.flatMap((blocker) => [blocker.type, blocker.detail]), record.otel?.log.message || ''].join(' ');
+    assert.doesNotMatch(reviewerText, /\b(?:telemetry|otel|trace|metric|logs?|collector|instrumented|SSP)\b/i, label);
     const detail = detailFor(dashboard, record.id);
     assert.equal(detail.task.statement, record.statement, label);
     assert.ok(detail.task.summary.length <= 110, label);
