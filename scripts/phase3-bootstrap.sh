@@ -44,6 +44,16 @@ for deployment in postgres-exporter prometheus grafana; do
   k -n "$namespace" rollout status "deployment/$deployment" --timeout=300s
 done
 
+# Grafana reads GF_SECURITY_ADMIN_PASSWORD only while its SQLite store is first
+# initialized. Reconcile the running account with the Kubernetes Secret on
+# every bootstrap so a recreated or retained PVC cannot leave the documented
+# administrator credential stale. The password moves only over stdin and is
+# never rendered into Helm values, command arguments, or logs.
+k -n "$namespace" get secret grafana-admin -o jsonpath='{.data.admin-password}' |
+  base64 -d |
+  k -n "$namespace" exec -i deployment/grafana -- \
+    grafana cli admin reset-admin-password --password-from-stdin >/dev/null 2>&1
+
 # The destination must contain only a renewable database username/password pair.
 k -n "$namespace" get secret postgres-exporter-credential -o json |
   jq -e '(.data | keys | sort) == ["password", "username"]' >/dev/null

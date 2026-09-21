@@ -123,7 +123,11 @@ DO $$ BEGIN
   CREATE ROLE lnd_runtime NOLOGIN;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
-GRANT CONNECT ON DATABASE lnd TO lnd_runtime;
+-- LND creates and migrates its graph database during first boot. CONNECT alone
+-- is insufficient for the postgres backend; the non-login runtime role needs
+-- the database-level CREATE/TEMP privileges as well. Lease principals assume
+-- this role, keeping the bootstrap superuser out of the running workload.
+GRANT ALL PRIVILEGES ON DATABASE lnd TO lnd_runtime;
 DO $$ BEGIN
   CREATE ROLE postgres_monitor NOLOGIN;
 EXCEPTION WHEN duplicate_object THEN NULL;
@@ -147,7 +151,7 @@ vault_token_exec "$main_pod" "$main_root" vault write database/config/postgres \
 unset postgres_password
 vault_token_exec "$main_pod" "$main_root" vault write database/roles/lnd \
   db_name=postgres \
-  creation_statements='CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '\''{{password}}'\'' VALID UNTIL '\''{{expiration}}'\'' IN ROLE lnd_runtime; ALTER ROLE "{{name}}" SET ROLE lnd_runtime;' \
+  creation_statements='CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '\''{{password}}'\'' VALID UNTIL '\''{{expiration}}'\'' IN ROLE lnd_runtime; GRANT CONNECT ON DATABASE lnd TO "{{name}}"; ALTER ROLE "{{name}}" SET ROLE lnd_runtime;' \
   default_ttl=1h max_ttl=2h >/dev/null
 vault_token_exec "$main_pod" "$main_root" vault write database/roles/postgres-observability \
   db_name=postgres \

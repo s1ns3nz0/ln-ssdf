@@ -87,6 +87,27 @@ vault_token_exec "$main_root" vault write auth/kubernetes/role/ssdf-vso \
   audience=vault token_policies=ssdf-database-read,ssdf-wallet-read \
   token_ttl=1h token_max_ttl=2h >/dev/null
 
+# Phase 1's VSO client can still hold a database-only Kubernetes token. Restart
+# it after adding wallet-read so the static wallet Secrets cannot wait for the
+# prior token's one-hour lifetime before receiving the expanded policy.
+k -n "$vault_namespace" rollout restart deployment/vault-secrets-operator-controller-manager >/dev/null
+k -n "$vault_namespace" rollout status deployment/vault-secrets-operator-controller-manager --timeout=180s
+
+# Do not let the soon-to-be-created LND Pod capture the database credential
+# issued before the controller was restarted. VSO recreates this destination
+# from its fresh Kubernetes-auth token; LND is installed only after both keys
+# are present again.
+k -n "$namespace" delete secret lnd-db-credential --ignore-not-found >/dev/null
+for _ in $(seq 1 30); do
+  if k -n "$namespace" get secret lnd-db-credential -o json 2>/dev/null |
+    jq -e '(.data | keys | sort) == ["password", "username"]' >/dev/null; then
+    break
+  fi
+  sleep 2
+done
+k -n "$namespace" get secret lnd-db-credential -o json |
+  jq -e '(.data | keys | sort) == ["password", "username"]' >/dev/null
+
 k apply -f "$repo_root/manifests/phase2/vso-resources.yaml"
 k -n "$namespace" wait --for=condition=Ready vaultstaticsecret/lnd-primary-wallet --timeout=180s
 k -n "$namespace" wait --for=condition=Ready vaultstaticsecret/lnd-peer-wallet --timeout=180s

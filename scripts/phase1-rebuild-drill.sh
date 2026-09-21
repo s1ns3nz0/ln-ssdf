@@ -136,7 +136,7 @@ token_exec main-vault-0 "$main_root" vault write database/config/postgres \
 unset postgres_password
 token_exec main-vault-0 "$main_root" vault write database/roles/lnd \
   db_name=postgres \
-  creation_statements='CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '\''{{password}}'\'' VALID UNTIL '\''{{expiration}}'\'' IN ROLE lnd_runtime; ALTER ROLE "{{name}}" SET ROLE lnd_runtime;' \
+  creation_statements='CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '\''{{password}}'\'' VALID UNTIL '\''{{expiration}}'\'' IN ROLE lnd_runtime; GRANT CONNECT ON DATABASE lnd TO "{{name}}"; ALTER ROLE "{{name}}" SET ROLE lnd_runtime;' \
   default_ttl=1h max_ttl=2h >/dev/null
 token_exec main-vault-0 "$main_root" vault write database/roles/postgres-observability \
   db_name=postgres \

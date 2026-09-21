@@ -14,6 +14,17 @@ Phase 1은 Phase 0의 PostgreSQL bootstrap superuser를 애플리케이션 경�
 
 `STATE_DIR`은 저장소 밖의 새 디렉터리여야 한다. `unsealer-init.json`과 `main-init.json`에는 root token과 recovery key가 있으므로 0600 권한을 유지하고 백업 매체를 분리한다.
 
+로컬 환경을 완전히 새로 만들 때는 기존 regtest 체인, Vault, wallet, channel 상태를
+삭제하고 새 recovery material과 Raft snapshot을 생성한다. 다음 명령은 명시적으로
+`ln-ssdf-phase0` kind cluster만 대상으로 하며, Phase 0부터 Phase 8까지의 bootstrap을
+순서대로 검증한다.
+
+```bash
+scripts/fresh-local-bootstrap.sh \
+  --state-dir "$HOME/.local/state/ln-ssdf-phase1" \
+  --confirm-recreate
+```
+
 ```bash
 STATE_DIR="$HOME/.local/state/ln-ssdf-phase1"
 scripts/phase1-bootstrap.sh \
