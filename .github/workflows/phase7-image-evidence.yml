@@ -29,8 +29,8 @@ jobs:
         env: { IMAGE: "${{ matrix.image }}" }
         run: |
           mkdir -p artifacts
-          docker run --rm aquasec/trivy@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 image --image-src remote --format cyclonedx --output artifacts/sbom.cdx.json "$IMAGE"
-          docker run --rm aquasec/trivy@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 image --image-src remote --format json --output artifacts/trivy.json "$IMAGE"
+          docker run --rm -v "$PWD/artifacts:/artifacts" aquasec/trivy@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 image --image-src remote --format cyclonedx --output /artifacts/sbom.cdx.json "$IMAGE"
+          docker run --rm -v "$PWD/artifacts:/artifacts" aquasec/trivy@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 image --image-src remote --format json --output /artifacts/trivy.json "$IMAGE"
       - name: Build VSA predicate
         env: { IMAGE: "${{ matrix.image }}" }
         run: node scripts/generate-phase7-vsa.mjs artifacts/sbom.cdx.json artifacts/trivy.json "$IMAGE" artifacts/vsa.json | tee artifacts/result.json
