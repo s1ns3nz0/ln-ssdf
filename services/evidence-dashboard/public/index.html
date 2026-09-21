@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <title>SSDF Posture</title>
+    <link rel="stylesheet" href="__BASE_PATH__/style.css?v=4" />
+  </head>
+  <body>
+    <div id="app" aria-live="polite"><div class="boot">Loading SSDF posture dashboard…</div></div>
+    <dialog id="raw-dialog" class="raw-dialog">
+      <form method="dialog"><button class="icon-button" aria-label="Close raw JSON">×</button></form>
+      <h2 id="raw-title">Source document JSON</h2>
+      <pre id="raw-content"></pre>
+    </dialog>
+    <script>window.__DASHBOARD_BASE_PATH__ = '__BASE_PATH__';</script>
+    <script type="module" src="__BASE_PATH__/app.js?v=4"></script>
+  </body>
+</html>
