@@ -34,6 +34,11 @@ jobs:
       - name: Build VSA predicate
         env: { IMAGE: "${{ matrix.image }}" }
         run: node scripts/generate-phase7-vsa.mjs artifacts/sbom.cdx.json artifacts/trivy.json "$IMAGE" artifacts/vsa.json | tee artifacts/result.json
+      - name: Authenticate to GitHub Container Registry
+        run: |
+          echo "${{ github.token }}" | docker login ghcr.io \
+            --username "${{ github.actor }}" \
+            --password-stdin
       - name: Publish keyless SBOM and VSA to the dedicated evidence repository
         env:
           IMAGE: "${{ matrix.image }}"
