@@ -299,8 +299,8 @@ Phase 0은 **부트스트랩 정적 시크릿**으로 시작한다. Phase 1에�
 - **Phase 3 — 완료 (2026-09-21, local kind)**: Prometheus, Grafana, lndmon, postgres-exporter를 배포했다. exporter는 VSO가 동기화한 `postgres-observability` 동적 lease만 사용하고, Grafana는 ClusterIP 전용·익명 접근 비활성화·런타임 생성 관리자 Secret으로 설치한다. `ln-ssdf-phase0`을 삭제·재생성한 뒤 Vault snapshot 복원과 새 Phase 2 체인/채널 드릴을 거쳐, Prometheus가 primary lnd·peer lnd·lndmon·postgres-exporter 네 target에서 모두 `up == 1`임을 재확인했다. Grafana와 Prometheus PVC도 새 클러스터에서 바인딩됐다. 절차와 범위는 [Phase 3 기록](docs/phase-3.md)에 있다.
 - **Phase 4 — 완료 (2026-09-21, local kind)**: checksum을 확인한 ArgoCD chart 10.9.2를 설치하고, PVC-backed in-cluster Git daemon의 `main`을 app-of-apps source로 사용했다. Vault→workloads→VSO resources→lnd→observability 파동의 Git source Application이 모두 같은 commit에서 `Synced`·`Healthy`가 됐다. commit된 probe ConfigMap 변경이 반영되고 out-of-band 변조가 self-heal되는 것을 확인했다. `phase4-rebuild-drill.sh`은 빈 local kind cluster에서 Phase 0~3 복원 뒤 이 게이트를 다시 통과한다. Git daemon은 인증 없는 로컬 fixture이므로 운영 source control 주장에는 사용할 수 없다. 자세한 범위는 [Phase 4 기록](docs/phase-4.md)에 있다.
 - **Phase 5 — 부분 검증**: SHA-pinned GitHub Actions workflow가 Node·Helm 검증과 source-provenance 생성 계약을 갖고, `main` push 후에만 GitHub OIDC keyless Cosign bundle을 발행하도록 구성했다. local `ci-verify.sh`는 통과했지만 GitHub remote·protected branch·OIDC identity·Rekor bundle 검증은 아직 실행 증거가 없다. [Phase 5 기록](docs/phase-5.md)의 조건 전까지 완료로 주장하지 않는다.
-- **Phase 6**: Audit와 격리 namespace에서 미서명 이미지 차단 확인
-- **Phase 7**: 전체 이미지 VSA 검증·만료·승인된 장애 복구 예외 확인 후 Enforce 승격
+- **Phase 6 — 완료 (2026-09-21, local kind)**: current Kyverno \`ValidatingPolicy\` API로 \`ssdf-system\`의 일반·init·ephemeral 컨테이너 digest를 Audit했고, 격리 namespace에서 mutable 일반 이미지와 init container를 API-server admission 단계에서 거절했다. Audit PolicyReport의 기존 SSDF 리소스는 모두 PASS다. [Phase 6 기록](docs/phase-6.md)에 범위가 있다.
+- **Phase 7 — 명시적 보류**: \`ssdf-system\`의 실제 7개 runtime image는 versioned inventory에 모두 \`no_evidence\`로 기록됐다. [readiness gate](docs/phase-7.md)는 인벤토리 drift를 실패로, 미검증 evidence를 exit 3으로 처리한다. signed SBOM·VSA↔SBOM digest binding·trusted keyless issuer·transparency-log 검증 전에는 Enforce로 승격하지 않는다.
 - **Phase 8**: Postgres 행 수동 변조 → 검증 잡 탐지 → 알럿 확인
 
 ### 규모 현실
