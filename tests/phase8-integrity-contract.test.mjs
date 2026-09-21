@@ -5,6 +5,7 @@ import test from 'node:test';
 const migration = readFileSync('db/migrations/phase8-evidence-integrity.sql', 'utf8');
 const chart = readFileSync('charts/observability/templates/stack.yaml', 'utf8');
 const drill = readFileSync('scripts/phase8-tamper-drill.sh', 'utf8');
+const externalEvidence = readFileSync('scripts/phase8-record-external-evidence.sh', 'utf8');
 const policies = readFileSync('manifests/phase8/network-policies.yaml', 'utf8');
 const guard = readFileSync('scripts/lib/phase8-local-kind-guard.sh', 'utf8');
 
@@ -39,4 +40,11 @@ test('Phase 8 scopes NetworkPolicy to the tested observability data path', () =>
   assert.match(policies, /app\.kubernetes\.io\/name: postgres/);
   assert.match(policies, /k8s-app: kube-dns/);
   assert.match(readFileSync('scripts/phase8-bootstrap.sh', 'utf8'), /unexpectedly reached Prometheus/);
+});
+
+test('Phase 8 projects external VSA and Scorecard references through append_evidence', () => {
+  assert.match(externalEvidence, /append_evidence/);
+  assert.match(externalEvidence, /'vsa', 'first_party'/);
+  assert.match(externalEvidence, /'scorecard', 'third_party'/);
+  assert.match(externalEvidence, /48 hours/);
 });

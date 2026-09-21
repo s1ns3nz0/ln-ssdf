@@ -24,6 +24,12 @@ not a namespace-wide default deny.
 
 The alert is visible in Prometheus only. No Alertmanager receiver or external
 notification channel is configured, so this does not claim paging delivery.
+
+External evidence is projected, not copied as authority: run
+`scripts/phase8-record-external-evidence.sh --context kind-ln-ssdf-phase0` to
+append the Phase 7 VSA and Scorecard workflow URLs, issuer, expiry, and compact
+claims to the chain. The script records the current verified runs by default or
+accepts explicit run IDs. GitHub artifacts and Rekor remain the authority.
 Rekor remains authoritative for signed attestations: a database superuser who
 rewrites an entire chain can defeat this local detector unless its signed
 checkpoint is compared to Rekor.
