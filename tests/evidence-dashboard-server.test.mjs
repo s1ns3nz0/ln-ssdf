@@ -45,9 +45,10 @@ test('fixture dashboard honors the path prefix and enforces its read-only API co
   assert.match(appText, /project: params\.get\('project'\) \|\| 'all'/);
   assert.match(appText, /All projects/);
   assert.match(appText, /Evidence freshness/);
+  assert.match(appText, /Runtime evidence/);
   assert.doesNotMatch(appText, /No remediation required/);
   assert.match(appText, /first\.summary/);
-  assert.doesNotMatch(appText, /<h4>OTel evidence|<dt>Trace ID|<dt>Metric|<dt>Log/);
+  assert.doesNotMatch(appText, /runtime telemetry|<h4>OTel evidence|<dt>Trace ID|<dt>Metric|<dt>Log/);
   assert.doesNotMatch(appText, /demo-banner|recovery-drills/);
 
   const wrongPrefix = await fetch(`${origin}/supply-chain/api/health`);
