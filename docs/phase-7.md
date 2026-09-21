@@ -29,3 +29,8 @@ repositories, `lightningnetwork/lnd` and `lightninglabs/aperture`, daily and on
 manual dispatch. Each result is a retained JSON artifact. Scorecard is a source
 posture measurement; it does not make an image VSA pass and does not expand the
 runtime-image evidence scope to aperture before it is deployed.
+
+The initial measurement, [run 35591904489](https://github.com/s1ns3nz0/ln-ssdf/actions/runs/35591904489), completed on 2026-09-21. It reported 5.8/10 for
+`lightningnetwork/lnd` and 4.7/10 for `lightninglabs/aperture`. These are
+time-bound upstream observations, not ln-ssdf compliance verdicts; the retained
+JSON artifacts contain the full check-level reasons.
