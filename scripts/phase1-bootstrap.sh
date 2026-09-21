@@ -123,10 +123,10 @@ DO $$ BEGIN
   CREATE ROLE lnd_runtime NOLOGIN;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
-# LND creates and migrates its graph database during first boot.  CONNECT alone
-# is insufficient for the postgres backend; the non-login runtime role needs
-# the database-level CREATE/TEMP privileges as well.  Lease principals assume
-# this role, keeping the bootstrap superuser out of the running workload.
+-- LND creates and migrates its graph database during first boot. CONNECT alone
+-- is insufficient for the postgres backend; the non-login runtime role needs
+-- the database-level CREATE/TEMP privileges as well. Lease principals assume
+-- this role, keeping the bootstrap superuser out of the running workload.
 GRANT ALL PRIVILEGES ON DATABASE lnd TO lnd_runtime;
 DO $$ BEGIN
   CREATE ROLE postgres_monitor NOLOGIN;
