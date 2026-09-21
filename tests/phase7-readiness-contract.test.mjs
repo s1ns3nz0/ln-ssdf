@@ -5,8 +5,9 @@ import test from 'node:test';
 const inventory = readFileSync('manifests/phase7/image-evidence-inventory.yaml', 'utf8');
 const gate = readFileSync('scripts/phase7-readiness.sh', 'utf8');
 
-test('Phase 7 inventory exposes every current image as no_evidence rather than verified', () => {
-  assert.equal((inventory.match(/^      status: no_evidence$/gm) ?? []).length, 7);
+test('Phase 7 inventory records failed evidence without treating it as verified', () => {
+  assert.equal((inventory.match(/^      status: failed_vsa$/gm) ?? []).length, 7);
+  assert.match(inventory, /^      blockingFindings: [1-9][0-9]*$/m);
   assert.doesNotMatch(inventory, /^      status: verified$/m);
 });
 

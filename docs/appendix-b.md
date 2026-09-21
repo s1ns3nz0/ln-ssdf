@@ -5,8 +5,8 @@ deployment.
 
 | Scope | Current state | Bound / follow-up |
 |---|---|---|
-| Phase 5 keyless provenance | Partial | GitHub OIDC issuer, exact workflow identity, commit, and transparency-log bundle were verified in [run 35589420371](https://github.com/s1ns3nz0/ln-ssdf/actions/runs/35589420371). `main` branch protection is not configured or verified, and the proof is source provenance rather than image/SBOM/VSA evidence. |
-| Phase 7 VSA enforcement | Explicitly held | All seven runtime images are digest-pinned but have no verified SBOM/VSA evidence; production Enforce remains disabled. |
+| Phase 5 keyless provenance | Complete for source provenance | `main` requires `Repository verification`; the OIDC identity, exact workflow, commit, run ID, and transparency-log bundle were independently verified in [run 35591393479](https://github.com/s1ns3nz0/ln-ssdf/actions/runs/35591393479). This is source provenance, not image/SBOM/VSA evidence. |
+| Phase 7 VSA enforcement | Explicitly held | All seven digest-pinned images have keylessly signed SBOM/VSA evidence from [run 35591049749](https://github.com/s1ns3nz0/ln-ssdf/actions/runs/35591049749), but each VSA is `FAILED` under the configured vulnerability policy. Production Enforce remains disabled pending compatible remediated images and fresh passing evidence. |
 | NetworkPolicy | Partial | The exporter→Postgres/DNS and Prometheus←Grafana paths are restricted and runtime-tested. There is no namespace-wide default deny: LND and bitcoind peer traffic need a separately tested policy design. |
 | Evidence tamper alert | Local detection only | Prometheus fires and resolves the alert, but no Alertmanager receiver or paging integration is configured. Rekor checkpoint comparison is also not yet implemented. |
 | Availability | Local single-node services | PostgreSQL, Prometheus, Grafana and Vault are single-instance local fixtures; this does not prove HA, backup RPO, or disaster recovery beyond the documented rebuild drills. |
