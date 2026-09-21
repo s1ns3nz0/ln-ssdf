@@ -43,6 +43,6 @@ jobs:
           cosign attest --yes --predicate artifacts/vsa.json --type https://slsa.dev/verification_summary/v1 "$IMAGE"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: phase7-${{ strategy.job-index }}
+          name: phase7-${{ matrix.image }}
           path: artifacts/
           if-no-files-found: error
