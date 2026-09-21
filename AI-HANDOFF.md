@@ -112,7 +112,7 @@ robust access control."* Postgres는 DB 크레덴셜만 있으면 이력을 다�
 - 측정류(Scorecard 점수, ArgoCD 상태) → Postgres 해시 체인
   (`row_hash = H(prev_hash || row)`), **하루 1회 체인 헤드만 서명해 Rekor에 기록**
   (Certificate Transparency STH 패턴)
-- 검증 잡이 Postgres ↔ Rekor 대조 → `ssdf_evidence_tamper_detected` 메트릭
+- 검증 잡이 Postgres projection hash chain을 재계산 → `ssdf_evidence_chain_tamper_detected` 메트릭
 
 ### 2.10 exporter는 사실만 내보낸다
 ```

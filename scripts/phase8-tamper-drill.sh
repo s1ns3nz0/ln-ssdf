@@ -3,12 +3,33 @@
 # It must only ever target kind-ln-ssdf-phase0, never a real environment.
 set -euo pipefail
 
-[[ "${1:-}" == "--context" && "${2:-}" == "kind-ln-ssdf-phase0" ]] || {
-  echo "usage: $0 --context kind-ln-ssdf-phase0" >&2
+[[ "${1:-}" == "--context" && "${2:-}" == "kind-ln-ssdf-phase0" && "${3:-}" == "--confirm-local-tamper-drill" ]] || {
+  echo "usage: $0 --context kind-ln-ssdf-phase0 --confirm-local-tamper-drill" >&2
   exit 2
 }
 context="$2"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$repo_root/scripts/lib/phase8-local-kind-guard.sh"
+require_phase8_local_kind "$context"
 k() { kubectl --context "$context" -n ssdf-system "$@"; }
+fixture_id=""
+restore_required=0
+
+cleanup() {
+  local status="$?"
+  if [[ "$restore_required" == "1" && "$fixture_id" =~ ^[0-9a-f-]{36}$ ]]; then
+    k exec -i ssdf-postgres-0 -- psql -U postgres -d ssdf -v ON_ERROR_STOP=1 -v fixture_id="$fixture_id" <<'SQL' >/dev/null 2>&1 || true
+BEGIN;
+ALTER TABLE evidence DISABLE TRIGGER evidence_append_only;
+UPDATE evidence SET claim = '{"fixture":"intact"}'::jsonb
+WHERE evidence_id = :'fixture_id'::uuid;
+ALTER TABLE evidence ENABLE TRIGGER evidence_append_only;
+COMMIT;
+SQL
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
 
 fixture_id="$(
   k exec -i ssdf-postgres-0 -- psql -U postgres -d ssdf -At -v ON_ERROR_STOP=1 <<'SQL'
@@ -25,11 +46,14 @@ baseline="$(k exec ssdf-postgres-0 -- psql -U postgres -d ssdf -Atc 'SELECT vali
 [[ "$baseline" == "true" ]] || { echo "baseline evidence chain is not valid" >&2; exit 1; }
 
 # The local superuser models an attacker who bypasses the append-only trigger.
+restore_required=1
 k exec -i ssdf-postgres-0 -- psql -U postgres -d ssdf -v ON_ERROR_STOP=1 -v fixture_id="$fixture_id" <<'SQL'
+BEGIN;
 ALTER TABLE evidence DISABLE TRIGGER evidence_append_only;
 UPDATE evidence SET claim = '{"fixture":"tampered"}'::jsonb
 WHERE evidence_id = :'fixture_id'::uuid;
 ALTER TABLE evidence ENABLE TRIGGER evidence_append_only;
+COMMIT;
 SQL
 broken="$(k exec ssdf-postgres-0 -- psql -U postgres -d ssdf -Atc 'SELECT valid::text FROM verify_evidence_chain()')"
 [[ "$broken" == "false" ]] || { echo "controlled mutation was not detected by the verifier" >&2; exit 1; }
@@ -52,10 +76,12 @@ jq -e '.data.alerts[] | select(.labels.alertname == "SsdfEvidenceTamperDetected"
 
 # Restore exactly the fixture claim; the fixture remains as local drill evidence.
 k exec -i ssdf-postgres-0 -- psql -U postgres -d ssdf -v ON_ERROR_STOP=1 -v fixture_id="$fixture_id" <<'SQL'
+BEGIN;
 ALTER TABLE evidence DISABLE TRIGGER evidence_append_only;
 UPDATE evidence SET claim = '{"fixture":"intact"}'::jsonb
 WHERE evidence_id = :'fixture_id'::uuid;
 ALTER TABLE evidence ENABLE TRIGGER evidence_append_only;
+COMMIT;
 SQL
 for _ in $(seq 1 15); do
   metric="$(k exec deploy/postgres-exporter -- sh -c \
@@ -77,4 +103,5 @@ if jq -e '.data.alerts[]? | select(.labels.alertname == "SsdfEvidenceTamperDetec
   echo "tamper alert did not resolve after restoration" >&2
   exit 1
 fi
+restore_required=0
 echo "Phase 8 tamper drill passed: mutation, metric, firing alert, restoration, and alert resolution verified."
