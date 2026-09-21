@@ -278,7 +278,7 @@ Phase 0은 **부트스트랩 정적 시크릿**으로 시작한다. Phase 1에�
 | 2 | bitcoind → lnd + lndinit(seed from Vault) + postgres 백엔드 | **완료** |
 | 3 | Prometheus/Grafana + lndmon + postgres_exporter | **완료**; 재구축 후 scrape 게이트 통과 |
 | 4 | ArgoCD 컷오버 + sync waves | **완료**; local Git source 재구축·drift self-heal 통과 |
-| 5 | CI 컨트롤 + cosign 서명 | 클러스터 무관, 병렬 가능 |
+| 5 | CI 컨트롤 + cosign 서명 | **부분 검증**; local CI 통과, GitHub OIDC 실행 대기 |
 | 6 | Kyverno Audit + 격리 namespace 차단 테스트 (+ CI `kyverno apply`) | C2P 실태 확인 지점 |
 | 7 | Scorecard + 전체 배포 이미지 VSA + 해시체인/Rekor 기록 | 검증 경로 준비 후 Enforce |
 | 8 | 집계 + 알럿 + 런북 + NetworkPolicy + Appendix B | ← **컷라인** |
@@ -298,6 +298,7 @@ Phase 0은 **부트스트랩 정적 시크릿**으로 시작한다. Phase 1에�
 - **Phase 2 — 완료 (2026-09-21, local kind)**: regtest bitcoind와 primary(Postgres)·peer(bbolt) lnd를 구성했다. Vault KV→VSO wallet Secret, Vault database lease→VSO DB Secret 경로로 primary를 구동해 1,000,000 sat 채널과 양방향 결제를 확인했다. 이전 lease를 Vault에서 명시 revoke하고 새 lease로 primary를 재기동한 뒤 기존 채널의 양방향 결제를 다시 통과했다. `ln-ssdf-phase0` cluster/PVC를 삭제·재생성해 Vault snapshot을 복원하고 새 regtest 체인·채널·양방향 결제를 다시 통과했다. 이 재생성 검증은 기존 채널 복구 주장이 아니라 새 체인에서의 설치 가능성 증명이다.
 - **Phase 3 — 완료 (2026-09-21, local kind)**: Prometheus, Grafana, lndmon, postgres-exporter를 배포했다. exporter는 VSO가 동기화한 `postgres-observability` 동적 lease만 사용하고, Grafana는 ClusterIP 전용·익명 접근 비활성화·런타임 생성 관리자 Secret으로 설치한다. `ln-ssdf-phase0`을 삭제·재생성한 뒤 Vault snapshot 복원과 새 Phase 2 체인/채널 드릴을 거쳐, Prometheus가 primary lnd·peer lnd·lndmon·postgres-exporter 네 target에서 모두 `up == 1`임을 재확인했다. Grafana와 Prometheus PVC도 새 클러스터에서 바인딩됐다. 절차와 범위는 [Phase 3 기록](docs/phase-3.md)에 있다.
 - **Phase 4 — 완료 (2026-09-21, local kind)**: checksum을 확인한 ArgoCD chart 10.9.2를 설치하고, PVC-backed in-cluster Git daemon의 `main`을 app-of-apps source로 사용했다. Vault→workloads→VSO resources→lnd→observability 파동의 Git source Application이 모두 같은 commit에서 `Synced`·`Healthy`가 됐다. commit된 probe ConfigMap 변경이 반영되고 out-of-band 변조가 self-heal되는 것을 확인했다. `phase4-rebuild-drill.sh`은 빈 local kind cluster에서 Phase 0~3 복원 뒤 이 게이트를 다시 통과한다. Git daemon은 인증 없는 로컬 fixture이므로 운영 source control 주장에는 사용할 수 없다. 자세한 범위는 [Phase 4 기록](docs/phase-4.md)에 있다.
+- **Phase 5 — 부분 검증**: SHA-pinned GitHub Actions workflow가 Node·Helm 검증과 source-provenance 생성 계약을 갖고, `main` push 후에만 GitHub OIDC keyless Cosign bundle을 발행하도록 구성했다. local `ci-verify.sh`는 통과했지만 GitHub remote·protected branch·OIDC identity·Rekor bundle 검증은 아직 실행 증거가 없다. [Phase 5 기록](docs/phase-5.md)의 조건 전까지 완료로 주장하지 않는다.
 - **Phase 6**: Audit와 격리 namespace에서 미서명 이미지 차단 확인
 - **Phase 7**: 전체 이미지 VSA 검증·만료·승인된 장애 복구 예외 확인 후 Enforce 승격
 - **Phase 8**: Postgres 행 수동 변조 → 검증 잡 탐지 → 알럿 확인
