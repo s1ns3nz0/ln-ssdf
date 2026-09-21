@@ -26,7 +26,7 @@ statement="$evidence_dir/ci-provenance.json"
 bundle="$evidence_dir/ci-provenance.bundle.json"
 [[ -f "$statement" && -f "$bundle" ]] || { echo "missing provenance artifact files" >&2; exit 66; }
 
-identity="https://github.com/${repository}/.github/workflows/ci.yml@refs/heads/main"
+identity="https://github.com/${repository}/.github/workflows/attest-source-provenance.yml@refs/heads/main"
 cosign verify-blob \
   --bundle "$bundle" \
   --certificate-identity "$identity" \
@@ -38,7 +38,7 @@ jq -e --arg commit "$commit" --arg run_id "$run_id" --arg repository "$repositor
   .predicateType == "https://ln-ssdf.dev/ci-provenance/v1" and
   .predicate.commit == $commit and
   .predicate.repository == $repository and
-  .predicate.workflow == "CI and keyless provenance" and
+  .predicate.workflow == "Attest Source Provenance" and
   .predicate.runId == $run_id
 ' "$statement" >/dev/null
 

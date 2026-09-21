@@ -1,16 +1,24 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-test('CI pins actions and reserves keyless signing for main pushes', () => {
-  const workflow = readFileSync('.github/workflows/ci.yml', 'utf8');
-  assert.match(workflow, /actions\/checkout@[0-9a-f]{40}/);
-  assert.match(workflow, /sigstore\/cosign-installer@[0-9a-f]{40}/);
-  assert.match(workflow, /id-token: write/);
-  assert.match(workflow, /github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/);
-  assert.match(workflow, /cosign sign-blob --yes/);
+test('validation and provenance workflows keep verification and signing responsibilities separate', () => {
+  const validation = readFileSync('.github/workflows/validate.yml', 'utf8');
+  const provenance = readFileSync('.github/workflows/attest-source-provenance.yml', 'utf8');
+  assert.match(validation, /name: Validate/);
+  assert.match(validation, /name: Repository verification/);
+  assert.match(validation, /run: scripts\/ci-verify\.sh/);
+  assert.doesNotMatch(validation, /id-token: write/);
+  assert.match(provenance, /name: Attest Source Provenance/);
+  assert.match(provenance, /workflow_run:/);
+  assert.match(provenance, /workflows: \[Validate\]/);
+  assert.match(provenance, /github\.event\.workflow_run\.conclusion == 'success'/);
+  assert.match(provenance, /github\.event\.workflow_run\.head_sha/);
+  assert.match(provenance, /sigstore\/cosign-installer@[0-9a-f]{40}/);
+  assert.match(provenance, /id-token: write/);
+  assert.match(provenance, /cosign sign-blob --yes/);
   const verifier = readFileSync('scripts/verify-ci-provenance.sh', 'utf8');
   assert.match(verifier, /--certificate-oidc-issuer 'https:\/\/token\.actions\.githubusercontent\.com'/);
-  assert.match(verifier, /github\.com\/\$\{repository\}\/.github\/workflows\/ci\.yml@refs\/heads\/main/);
+  assert.match(verifier, /github\.com\/\$\{repository\}\/.github\/workflows\/attest-source-provenance\.yml@refs\/heads\/main/);
   const phase7 = readFileSync('.github/workflows/phase7-image-evidence.yml', 'utf8');
   assert.match(phase7, /packages: write/);
   assert.match(phase7, /id-token: write/);

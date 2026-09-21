@@ -1,0 +1,47 @@
+name: Attest Source Provenance
+
+# Run only after the protected-main validation workflow has succeeded. The
+# attestation checks out the validated triggering commit explicitly, rather
+# than relying on the default ref of a workflow_run event.
+on:
+  workflow_run:
+    workflows: [Validate]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  attest-source:
+    name: Sign validated source provenance
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out validated commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: '20'
+      - name: Set up Cosign
+        uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62
+        with:
+          cosign-release: v2.6.0
+      - name: Generate source provenance statement
+        env:
+          GITHUB_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: node scripts/generate-ci-provenance.mjs artifacts/ci-provenance.json
+      - name: Sign source provenance with GitHub OIDC
+        run: cosign sign-blob --yes --bundle artifacts/ci-provenance.bundle.json artifacts/ci-provenance.json
+      - name: Retain signed provenance bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: source-provenance-${{ github.event.workflow_run.head_sha }}
+          path: artifacts/ci-provenance.*
+          if-no-files-found: error
