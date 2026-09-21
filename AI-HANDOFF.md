@@ -301,7 +301,7 @@ Phase 0은 **부트스트랩 정적 시크릿**으로 시작한다. Phase 1에�
 - **Phase 5 — 부분 검증**: SHA-pinned GitHub Actions workflow가 Node·Helm 검증과 source-provenance 생성 계약을 갖고, `main` push 후에만 GitHub OIDC keyless Cosign bundle을 발행하도록 구성했다. local `ci-verify.sh`는 통과했지만 GitHub remote·protected branch·OIDC identity·Rekor bundle 검증은 아직 실행 증거가 없다. [Phase 5 기록](docs/phase-5.md)의 조건 전까지 완료로 주장하지 않는다.
 - **Phase 6 — 완료 (2026-09-21, local kind)**: current Kyverno \`ValidatingPolicy\` API로 \`ssdf-system\`의 일반·init·ephemeral 컨테이너 digest를 Audit했고, 격리 namespace에서 mutable 일반 이미지와 init container를 API-server admission 단계에서 거절했다. Audit PolicyReport의 기존 SSDF 리소스는 모두 PASS다. [Phase 6 기록](docs/phase-6.md)에 범위가 있다.
 - **Phase 7 — 명시적 보류**: \`ssdf-system\`의 실제 7개 runtime image는 versioned inventory에 모두 \`no_evidence\`로 기록됐다. [readiness gate](docs/phase-7.md)는 인벤토리 drift를 실패로, 미검증 evidence를 exit 3으로 처리한다. signed SBOM·VSA↔SBOM digest binding·trusted keyless issuer·transparency-log 검증 전에는 Enforce로 승격하지 않는다.
-- **Phase 8**: Postgres 행 수동 변조 → 검증 잡 탐지 → 알럿 확인
+- **Phase 8 — 완료 (2026-09-21, local kind)**: evidence projection hash chain을 재계산하는 PostgreSQL verifier를 postgres-exporter metric과 Prometheus alert에 연결했다. 전용 fixture row를 trigger 우회로 변조해 verifier 실패→metric 1→firing alert를 확인했고, 원래 claim 복구 뒤 metric 0과 alert 해제까지 확인했다. 관측성 경로 NetworkPolicy도 GitOps로 적용하고 scrape gate를 재확인했다. Alertmanager 외부 전달, Rekor checkpoint 대조, namespace-wide default deny는 [Appendix B](docs/appendix-b.md)의 명시적 제한이다.
 
 ### 규모 현실
 Phase 10개는 포트폴리오치고 크다. **Phase 0~4가 "돌아가는 플랫폼", 5~8이 "204D 컨포먼스".**

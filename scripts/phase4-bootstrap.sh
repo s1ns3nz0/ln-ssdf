@@ -71,7 +71,7 @@ done
 k apply -f "$repo_root/gitops/root-application.yaml"
 k -n argocd annotate application ln-ssdf-root argocd.argoproj.io/refresh=hard --overwrite >/dev/null
 wait_app ln-ssdf-root "$git_revision"
-for app in vault-unsealer vault-main postgres bitcoind phase1-vso-resources phase2-vso-resources lnd observability gitops-probe; do
+for app in vault-unsealer vault-main postgres bitcoind phase1-vso-resources phase2-vso-resources lnd observability gitops-probe phase8-network-policy; do
   k -n argocd annotate application "$app" argocd.argoproj.io/refresh=hard --overwrite >/dev/null
   wait_app "$app" "$git_revision"
 done

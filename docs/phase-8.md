@@ -1,6 +1,6 @@
 # Phase 8 — evidence integrity operational gate
 
-**Status: implemented, runtime drill pending.** The PostgreSQL verifier
+**Status: runtime-verified (2026-09-21, local kind).** The PostgreSQL verifier
 recomputes each projection-row hash and predecessor link. The postgres exporter
 exposes ssdf_evidence_chain_tamper_detected; Prometheus evaluates it every 15
 seconds and fires SsdfEvidenceTamperDetected when it is one.
@@ -10,7 +10,7 @@ then run scripts/phase8-bootstrap.sh --context kind-ln-ssdf-phase0 and
 scripts/phase8-tamper-drill.sh --context kind-ln-ssdf-phase0. The drill creates
 a dedicated local fixture, bypasses its append-only trigger to model a manual
 PostgreSQL mutation, proves verifier → metric → firing alert, then restores the
-original fixture claim.
+original fixture claim and waits for the firing alert to resolve.
 
 The bootstrap performs a controlled Prometheus restart after Argo CD sync,
 because the base Prometheus process does not watch mounted rule files. The

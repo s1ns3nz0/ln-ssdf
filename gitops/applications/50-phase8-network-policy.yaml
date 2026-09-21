@@ -1,0 +1,14 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: phase8-network-policy
+  namespace: argocd
+  annotations: { argocd.argoproj.io/sync-wave: "7" }
+spec:
+  project: default
+  source:
+    repoURL: git://git-server.gitops-system.svc:9418/ln-ssdf.git
+    targetRevision: main
+    path: manifests/phase8
+  destination: { server: https://kubernetes.default.svc, namespace: ssdf-system }
+  syncPolicy: { automated: { prune: false, selfHeal: true }, syncOptions: [CreateNamespace=true] }
