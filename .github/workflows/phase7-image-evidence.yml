@@ -1,6 +1,6 @@
 name: Phase 7 image evidence
-on:
-  workflow_dispatch:
+"on":
+  workflow_dispatch: {}
 permissions:
   contents: read
   packages: write
@@ -11,14 +11,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image:
-          - grafana/grafana:12.0.1@sha256:06dc8d60e184705e5dc00e051a6d92342a44010d7d5e538d0a36339e85abb9b7
-          - lightninglabs/lnd:v0.18.5-beta@sha256:2b560c9beb559c57ab2f2da1dfed80d286cf11a6dc6e4354cab84aafba79b6f6
-          - lightninglabs/lndmon:v0.2.15@sha256:231d981ddafb6ab73fc6e1ff29697b99f29a1ddcf17c13f8b72267ca3939e8e5
-          - lncm/bitcoind:v26.0@sha256:2a335ea0e77106fc8768cade374808485a43825a6b4a17e85dd36d4acd931b22
-          - postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
-          - prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996
-          - prometheuscommunity/postgres-exporter:v0.17.1@sha256:38606faa38c54787525fb0ff2fd6b41b4cfb75d455c1df294927c5f611699b17
+        include:
+          - { name: grafana, image: "grafana/grafana:12.0.1@sha256:06dc8d60e184705e5dc00e051a6d92342a44010d7d5e538d0a36339e85abb9b7" }
+          - { name: lnd, image: "lightninglabs/lnd:v0.18.5-beta@sha256:2b560c9beb559c57ab2f2da1dfed80d286cf11a6dc6e4354cab84aafba79b6f6" }
+          - { name: lndmon, image: "lightninglabs/lndmon:v0.2.15@sha256:231d981ddafb6ab73fc6e1ff29697b99f29a1ddcf17c13f8b72267ca3939e8e5" }
+          - { name: bitcoind, image: "lncm/bitcoind:v26.0@sha256:2a335ea0e77106fc8768cade374808485a43825a6b4a17e85dd36d4acd931b22" }
+          - { name: postgres, image: "postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685" }
+          - { name: prometheus, image: "prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996" }
+          - { name: postgres-exporter, image: "prometheuscommunity/postgres-exporter:v0.17.1@sha256:38606faa38c54787525fb0ff2fd6b41b4cfb75d455c1df294927c5f611699b17" }
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
@@ -43,6 +43,6 @@ jobs:
           cosign attest --yes --predicate artifacts/vsa.json --type https://slsa.dev/verification_summary/v1 "$IMAGE"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: phase7-${{ matrix.image }}
+          name: phase7-${{ matrix.name }}
           path: artifacts/
           if-no-files-found: error
