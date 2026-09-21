@@ -43,3 +43,8 @@ Phase 4 is `passed` only when all of the following occur on a fresh
 
 Until a Git repository exists and this gate has passed, direct Helm invocations
 remain the verified local bootstrap path, not a GitOps claim.
+
+The local drill uses a PVC-backed in-cluster Git daemon, populated from a local
+commit during bootstrap. ArgoCD talks to `git://git-server.gitops-system.svc`,
+not a host path. This proves the local Git protocol and reconciliation boundary;
+the unauthenticated daemon is not a production source-control service.
