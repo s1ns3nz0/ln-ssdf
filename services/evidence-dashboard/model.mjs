@@ -36,15 +36,15 @@ const organizationPolicies = [
 const documentTasks = new Set(['PO.1.1', 'PO.1.2', 'PO.1.3', 'PO.2.1', 'PO.2.2', 'PO.2.3', 'PO.4.1', 'PO.4.2']);
 const lndBlocked = new Map([
   ['PW.8.1', ['Failed assessment', 'Executable vulnerability test found an unresolved critical finding.']],
-  ['PW.8.2', ['Evidence stale or absent', 'Required release-verification evidence is older than the scenario freshness window.']],
-  ['RV.1.1', ['Evidence threshold breached', 'Vulnerability-identification latency exceeded the organization policy threshold.']],
+  ['PW.8.2', ['Evidence missing or out of date', 'Required release-verification evidence is older than the scenario freshness window.']],
+  ['RV.1.1', ['Observed activity exceeded policy limit', 'Vulnerability-identification latency exceeded the organization policy threshold.']],
   ['RV.2.1', ['Policy violation', 'A critical remediation ticket exceeded its policy target date.']],
 ]);
 const apertureBlocked = new Map([
   ['PS.2.1', ['Evidence link missing', 'The release-integrity attestation is not linked to the current artifact.']],
   ['PW.6.1', ['Failed assessment', 'Build-hardening assessment failed for the current compiler configuration.']],
-  ['PW.8.1', ['Evidence threshold breached', 'Runtime security-test error rate exceeded its configured threshold.']],
-  ['RV.1.1', ['Evidence stale or absent', 'No recent vulnerability observation is available for this component.']],
+  ['PW.8.1', ['Observed activity exceeded policy limit', 'Runtime security-test error rate exceeded its configured threshold.']],
+  ['RV.1.1', ['Evidence missing or out of date', 'No recent vulnerability observation is available for this component.']],
   ['RV.2.1', ['Policy violation', 'A high-severity finding was accepted without a valid remediation milestone.']],
   ['RV.3.1', ['Missing implementation', 'Root-cause analysis workflow has not been implemented for this service.']],
 ]);
@@ -89,11 +89,11 @@ function pickStatus(projectId, taskId, index) {
 
 function telemetryFor(task, projectId, posture, index) {
   if (posture === 'Not Applicable') return { status: 'Not Applicable', reason: 'This task is outside the declared project scope in the synthetic scenario.' };
-  if (documentTasks.has(task.id)) return { status: 'Not Applicable', reason: 'Policy and implementation records provide the evidence for this task; runtime evidence is not needed.' };
+  if (documentTasks.has(task.id)) return { status: 'Not Applicable', reason: 'Policy and implementation records are enough for this task; runtime evidence is not needed.' };
   if (posture === 'Blocked') {
     const reason = (projectId === 'lnd' ? lndBlocked : apertureBlocked).get(task.id)?.[0];
-    if (reason === 'Evidence stale or absent') return { status: 'Stale', reason: 'Required evidence is outside the scenario freshness window.' };
-    if (reason === 'Evidence threshold breached') return { status: 'Degraded', reason: 'Observed activity exceeded its configured threshold.' };
+    if (reason === 'Evidence missing or out of date') return { status: 'Stale', reason: 'Required evidence is outside the scenario freshness window.' };
+    if (reason === 'Observed activity exceeded policy limit') return { status: 'Degraded', reason: 'Observed activity exceeded the scenario policy limit.' };
     if (reason === 'Missing implementation') return { status: 'No Signal', reason: 'The required workflow does not exist.' };
   }
   if (posture === 'Partial') return { status: index % 2 ? 'Degraded' : 'Healthy', reason: 'Evidence is present but the implementation scope is incomplete.' };
