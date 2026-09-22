@@ -40,6 +40,9 @@ spec:
   renewalPercent: 50
   revoke: true
   vaultAuthRef: ssdf-database-auth
+  rolloutRestartTargets:
+    - kind: StatefulSet
+      name: lnd-primary
   destination:
     name: lnd-db-credential
     create: true
@@ -57,6 +60,9 @@ spec:
   renewalPercent: 50
   revoke: true
   vaultAuthRef: ssdf-database-auth
+  rolloutRestartTargets:
+    - kind: Deployment
+      name: postgres-exporter
   destination:
     name: postgres-exporter-credential
     create: true

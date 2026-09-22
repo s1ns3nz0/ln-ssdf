@@ -67,6 +67,18 @@ pay_with_retry() {
 # that both endpoints can issue and pay over the new channel.
 pay_with_retry lnd-peer-0 lnd-primary-0 10000
 pay_with_retry lnd-primary-0 lnd-peer-0 7000
+secret_db_user="$(kubectl --context "$context" -n ssdf-system get secret lnd-db-credential -o json | jq -er '.data.username | @base64d')"
+pod_db_user="$(kubectl --context "$context" -n ssdf-system exec lnd-primary-0 -c lnd -- printenv DB_USERNAME)"
+[[ "$pod_db_user" == "$secret_db_user" ]] || {
+  echo "LND is running with a different PostgreSQL role than the current Vault Secret" >&2
+  exit 1
+}
+kubectl --context "$context" -n ssdf-system exec ssdf-postgres-0 -- psql -U postgres -d postgres -Atc \
+  "SELECT rolname, rolvaliduntil > now() FROM pg_authid WHERE rolname LIKE 'v-kubernet-lnd-%'" |
+  awk -F '|' -v username="$pod_db_user" '$1 == username && $2 == "t" {found=1} END {exit !found}' || {
+    echo "LND's running PostgreSQL role is expired or missing" >&2
+    exit 1
+  }
 kubectl --context "$context" -n ssdf-system exec ssdf-postgres-0 -- psql -U postgres -d lnd -Atc \
   "SELECT count(*) FROM pg_tables WHERE schemaname='public'" | awk '$1 >= 6 {ok=1} END {exit !ok}'
 # Do not use grep -q: it may cause a SIGPIPE under pipefail despite a match.

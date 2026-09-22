@@ -152,10 +152,12 @@ unset postgres_password
 vault_token_exec "$main_pod" "$main_root" vault write database/roles/lnd \
   db_name=postgres \
   creation_statements='CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '\''{{password}}'\'' VALID UNTIL '\''{{expiration}}'\'' IN ROLE lnd_runtime; GRANT CONNECT ON DATABASE lnd TO "{{name}}"; ALTER ROLE "{{name}}" SET ROLE lnd_runtime;' \
+  renew_statements='ALTER ROLE "{{name}}" VALID UNTIL '\''{{expiration}}'\'';' \
   default_ttl=1h max_ttl=2h >/dev/null
 vault_token_exec "$main_pod" "$main_root" vault write database/roles/postgres-observability \
   db_name=postgres \
   creation_statements='CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '\''{{password}}'\'' VALID UNTIL '\''{{expiration}}'\'' IN ROLE postgres_monitor; ALTER ROLE "{{name}}" SET ROLE postgres_monitor;' \
+  renew_statements='ALTER ROLE "{{name}}" VALID UNTIL '\''{{expiration}}'\'';' \
   default_ttl=1h max_ttl=2h >/dev/null
 
 vault_token_exec "$main_pod" "$main_root" vault auth enable kubernetes >/dev/null 2>&1 || true

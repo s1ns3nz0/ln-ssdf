@@ -12,7 +12,14 @@ spec:
     path: charts/lnd
     helm: { releaseName: lnd }
   destination: { server: https://kubernetes.default.svc, namespace: ssdf-system }
-  syncPolicy: { automated: { prune: false, selfHeal: true }, syncOptions: [CreateNamespace=true] }
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: lnd-primary
+      namespace: ssdf-system
+      jsonPointers:
+        - /spec/template/metadata/annotations/vso.secrets.hashicorp.com~1restartedAt
+  syncPolicy: { automated: { prune: false, selfHeal: true }, syncOptions: [CreateNamespace=true, RespectIgnoreDifferences=true] }
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -28,4 +35,11 @@ spec:
     path: charts/observability
     helm: { releaseName: observability }
   destination: { server: https://kubernetes.default.svc, namespace: ssdf-system }
-  syncPolicy: { automated: { prune: false, selfHeal: true }, syncOptions: [CreateNamespace=true] }
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: postgres-exporter
+      namespace: ssdf-system
+      jsonPointers:
+        - /spec/template/metadata/annotations/vso.secrets.hashicorp.com~1restartedAt
+  syncPolicy: { automated: { prune: false, selfHeal: true }, syncOptions: [CreateNamespace=true, RespectIgnoreDifferences=true] }

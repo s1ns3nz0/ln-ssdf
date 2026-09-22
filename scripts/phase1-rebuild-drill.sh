@@ -137,10 +137,12 @@ unset postgres_password
 token_exec main-vault-0 "$main_root" vault write database/roles/lnd \
   db_name=postgres \
   creation_statements='CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '\''{{password}}'\'' VALID UNTIL '\''{{expiration}}'\'' IN ROLE lnd_runtime; GRANT CONNECT ON DATABASE lnd TO "{{name}}"; ALTER ROLE "{{name}}" SET ROLE lnd_runtime;' \
+  renew_statements='ALTER ROLE "{{name}}" VALID UNTIL '\''{{expiration}}'\'';' \
   default_ttl=1h max_ttl=2h >/dev/null
 token_exec main-vault-0 "$main_root" vault write database/roles/postgres-observability \
   db_name=postgres \
   creation_statements='CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '\''{{password}}'\'' VALID UNTIL '\''{{expiration}}'\'' IN ROLE postgres_monitor; ALTER ROLE "{{name}}" SET ROLE postgres_monitor;' \
+  renew_statements='ALTER ROLE "{{name}}" VALID UNTIL '\''{{expiration}}'\'';' \
   default_ttl=1h max_ttl=2h >/dev/null
 cat <<'POLICY' | k -n vault-system exec -i main-vault-0 -- env VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN="$main_root" vault policy write ssdf-database-read - >/dev/null
 path "database/creds/lnd" { capabilities = ["read"] }
