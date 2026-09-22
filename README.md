@@ -220,10 +220,9 @@ scripts/phase12-a2a-e2e-acceptance.sh --context kind-ln-ssdf-phase0 \
   --confirm-local-a2a-acceptance
 ```
 
-Phase 10 needs an operator-provided local runtime credential for its
-AgentGateway provider integration. Its bootstrap reads that value only at
-runtime to create the in-cluster Secret; it does not print, stage, or commit
-the value. Do not add credentials to this repository.
+Phase 10 uses local Ollama `gpt-oss:20b` through AgentGateway. Start Ollama on
+the Docker host and pull that model before bootstrapping Phase 10. No provider
+credential is required.
 
 For phase-specific recovery and destructive-drill scope, see
 [Phase 1](docs/phase-1.md), [Phase 2](docs/phase-2.md), and
@@ -283,8 +282,8 @@ guarded to the named local kind cluster.
   AgentGateway, observability, AIOps, Chaos Mesh, or any external provider.
 - Phase 9's default source is a public pinned STIX fixture. A real OpenCTI
   GraphQL deployment and its dependencies are not bootstrapped here.
-- The Phase 12 model path uses a local AgentGateway integration with a free
-  model. Availability, latency, and diagnosis quality can vary; a timeout or
+- The Phase 12 model path uses a local AgentGateway integration with Ollama
+  `gpt-oss:20b`. Availability, latency, and diagnosis quality can vary; a timeout or
   uncertain diagnosis remains pending or needs human review rather than
   authorizing a restart. The synthetic A2A gate is therefore not deterministic
   and is not required to establish the real Chaos-driven acceptance result.
