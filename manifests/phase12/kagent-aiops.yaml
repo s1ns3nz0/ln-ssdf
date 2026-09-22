@@ -6,11 +6,11 @@ metadata:
 apiVersion: kagent.dev/v1alpha2
 kind: ModelConfig
 metadata:
-  name: phase12-agentgateway-free
+  name: phase12-agentgateway-ollama
   namespace: kagent
 spec:
   provider: OpenAI
-  model: openrouter/free
+  model: gpt-oss:20b
   apiKeySecret: phase12-gateway-placeholder
   apiKeySecretKey: OPENAI_API_KEY
   openAI:
@@ -47,7 +47,7 @@ spec:
   description: Bounded, read-only node operations diagnosis that proposes but never approves remediation.
   type: Declarative
   declarative:
-    modelConfig: phase12-agentgateway-free
+    modelConfig: phase12-agentgateway-ollama
     stream: false
     systemMessage: |-
       You are the Phase 12 AIOps diagnosis agent.

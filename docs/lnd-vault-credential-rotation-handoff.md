@@ -1,6 +1,6 @@
 # LND / Vault dynamic PostgreSQL credential rotation handoff
 
-Status on 2026-09-22: **the LND credential renewal and rotation fix passed a fresh Phase 0–8 rebuild and a bounded VSO lifecycle drill**. Phase 9–11 and the local Phase 12 approval gate also passed. The Phase 12 A2A AI call is limited by the external free-tier quota, so the whole AIOps path is not revalidated.
+Status on 2026-09-22: **the LND credential renewal and rotation fix passed a fresh Phase 0–8 rebuild and a bounded VSO lifecycle drill**. Phase 9–11 and the local Phase 12 approval gate also passed. A later local Ollama rerun passed the Phase 12 A2A path; see the update below.
 
 ## What failed
 
@@ -26,13 +26,27 @@ The original `lnd-primary-0` process retained an old `DB_USERNAME`/`DB_PASSWORD`
 6. Phase 9 cached-image deployment and 10-sat L402 payment acceptance passed. Phase 10 source build and AgentGateway live gate passed. Phase 11 Loki/Tempo/Collector and redaction gate passed. Phase 12 local contract, approved Kubernetes restart, kagent readiness, and Argo CD-owned alert routing passed. The A2A acceptance failed because OpenRouter returned HTTP 429 `free-models-per-day`; no new pending request was created. No paid credits were added or model/provider changed.
 7. After these later phases, the running LND and exporter usernames still matched their respective Secrets, both PostgreSQL roles were unexpired, and a further 1,000-sat LND payment succeeded. Argo CD kept the VSO targets present.
 
-These checks prove the local LND credential path across renewal and rotation, including after a fresh install and after the later-phase deployments above. They do not prove a complete Phase 12 AI/A2A path or that the setup runs unattended for days. A transient `client token expired` VSO log was observed before the fix, but VSO subsequently reauthenticated and issued new leases; long-duration observation should watch for recurrence.
+These checks prove the local LND credential path across renewal and rotation, including after a fresh install and after the later-phase deployments above. A later Ollama run proved one complete Phase 12 AI/A2A path; neither test proves that the setup runs unattended for days. A transient `client token expired` VSO log was observed before the fix, but VSO subsequently reauthenticated and issued new leases; long-duration observation should watch for recurrence.
 
 ## Next steps
 
-1. When the OpenRouter free-model daily quota resets, rerun the Phase 12 A2A acceptance and related AIOps gate. Do not purchase credits or change provider/model without user direction.
+1. The OpenRouter quota follow-up was superseded by the user-directed local Ollama switch and the successful Phase 12 A2A rerun below. The broader chaos/AIOps drill can still be rerun if needed.
 2. Preserve the unrelated edit in `services/evidence-dashboard/model.mjs`. The scoped fix and drill are committed locally; do not push unless requested. `bash -n`, ShellCheck on the new drill, `git diff --check`, and the fresh-cluster drill passed. The older scripts have existing ShellCheck SC2016 notices for intentional in-container variable expansion; `shellcheck -e SC2016` passed across the edited shell scripts.
 3. Observe at least one normal one-hour VSO renewal and later max-TTL rotation if claiming long-duration readiness. Inspect the running Pod username, current Secret username, PostgreSQL `rolvaliduntil`, VSO events, and a post-rotation LND RPC/payment. The bounded short-TTL drill already covers the mechanism but not prolonged operation.
 4. Consider removing the network dependency in `charts/lnd/templates/statefulset.yaml`: the `fetch-lndinit` init container downloaded a pinned release archive on each restart and took about a minute on the fresh cluster. This did not fail the drill, but could delay rotation recovery if the release endpoint is unavailable.
 
 Official API references: [Vault PostgreSQL renewal SQL](https://developer.hashicorp.com/vault/api-docs/secret/databases/postgresql), [VSO rollout restart targets](https://developer.hashicorp.com/vault/docs/deploy/kubernetes/vso/api-reference), [Argo CD ignored differences during sync](https://argo-cd.readthedocs.io/en/latest/user-guide/sync-options/).
+
+## 2026-09-22 Phase 12 model update
+
+The earlier OpenRouter 429 is historical. At the user's direction, Phase 10
+now routes OpenAI-compatible `/v1/` calls to local Ollama `gpt-oss:20b` via
+`host.docker.internal:11434`; `/ti/` still uses the L402 adapter. Phase 12
+kagent uses the corresponding Ollama ModelConfig. The new bootstraps do not
+read `.env` or require `phase10-openrouter`. On the existing local kind cluster,
+the gateway listed `gpt-oss:20b`, the Phase 10 L402 live gate passed, and
+`scripts/phase12-a2a-e2e-acceptance.sh` passed: a firing alert produced a new
+pending request, scoped approval restarted `ti-api`, and redacted evidence was
+appended. This proves one bounded local run, not long-duration reliability.
+The old Secret and old ModelConfig are unused but were left in place to avoid
+deleting pre-existing cluster state as part of this configuration change.

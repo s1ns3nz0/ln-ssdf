@@ -15,16 +15,10 @@ data:
         listeners:
           - protocol: HTTP
             routes:
-              - name: openrouter-openai-compatible
+              - name: ollama-openai-compatible
                 matches: [{ path: { pathPrefix: /v1/ } }]
-                policies:
-                  urlRewrite: { path: { prefix: /api/v1/ } }
                 backends:
-                  - host: openrouter.ai:443
-                    policies:
-                      backendTLS: { hostname: openrouter.ai }
-                      requestHeaderModifier:
-                        set: { authorization: "Bearer $LLM_MODEL_API" }
+                  - host: host.docker.internal:11434
               - name: paid-ti-via-l402-adapter
                 matches: [{ path: { pathPrefix: /ti/ } }]
                 policies:
@@ -64,9 +58,6 @@ spec:
           image: phase10-agentgateway:local
           imagePullPolicy: Never
           args: ["-f", "/etc/agentgateway/agentgateway.yaml"]
-          env:
-            - name: LLM_MODEL_API
-              valueFrom: { secretKeyRef: { name: phase10-openrouter, key: LLM_MODEL_API } }
           ports: [{ name: http, containerPort: 3000 }]
           volumeMounts: [{ name: config, mountPath: /etc/agentgateway, readOnly: true }]
           securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] }, runAsNonRoot: true }
@@ -92,8 +83,9 @@ spec:
   egress:
     - to: [{ podSelector: { matchLabels: { app: phase10-l402-adapter } } }]
       ports: [{ protocol: TCP, port: 8080 }]
-    - to: [{ ipBlock: { cidr: 0.0.0.0/0 } }]
-      ports: [{ protocol: TCP, port: 443 }]
+    # Bootstrap narrows this placeholder to Docker Desktop's resolved host /32.
+    - to: [{ ipBlock: { cidr: 0.0.0.0/32 } }]
+      ports: [{ protocol: TCP, port: 11434 }]
     - to:
         - namespaceSelector:
             matchLabels: { kubernetes.io/metadata.name: kube-system }

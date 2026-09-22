@@ -36,10 +36,9 @@ identity and target/action. No request body or secret material is emitted.
 
 `manifests/phase12/kagent-aiops.yaml` targets kagent 0.x `v1alpha2` resources.
 The `phase12-aiops` agent uses the OpenAI-compatible
-`phase10-agentgateway` Service with the OpenRouter `openrouter/free` model. The
-Phase 10 bootstrap owns `phase10-system/phase10-openrouter` and its
-`LLM_MODEL_API` key. Phase 12 verifies that Secret exists but never reads,
-copies, or mounts its value into kagent. The agent can inspect only the redacted operator-context MCP tool
+`phase10-agentgateway` Service with the local Ollama `gpt-oss:20b` model.
+Phase 10 checks the host Ollama endpoint; no provider credential is needed.
+The agent can inspect only the redacted operator-context MCP tool
 and the controller's bounded diagnosis/proposal MCP tools. Creating a pending
 proposal creation is allowed to produce only a pending Kubernetes request; the
 resulting request still requires a separate RBAC-authorized operator approval
@@ -48,9 +47,9 @@ before any controller action.
 kagent 0.6.3 requires a non-null Helm `providers.default` during chart
 rendering. The bootstrap supplies a no-secret OpenAI-compatible provider entry
 pointing at AgentGateway; the Phase12 `ModelConfig` remains the resource used by
-the agent, and no OpenRouter credential is passed to kagent.
+the agent. The required nonempty client key is a public placeholder, not a credential.
 
-Run Phase 10 first so it creates the provider Secret, then prepare kagent:
+Run Phase 10 first so it configures the Ollama route, then prepare kagent:
 
 ```sh
 scripts/phase12-kagent-bootstrap.sh --context kind-ln-ssdf-phase0 --confirm-local-kagent

@@ -101,12 +101,12 @@ test('kagent and Chaos Mesh definitions keep diagnosis bounded and target only T
   const kagent = await readFile(new URL('../manifests/phase12/kagent-aiops.yaml', import.meta.url), 'utf8');
   const chaos = await readFile(new URL('../manifests/phase12/chaos-experiments.yaml', import.meta.url), 'utf8');
   const bootstrap = await readFile(new URL('../scripts/phase12-kagent-bootstrap.sh', import.meta.url), 'utf8');
-  assert.match(kagent, /model: openrouter\/free/);
+  assert.match(kagent, /model: gpt-oss:20b/);
   assert.doesNotMatch(kagent, /requireApproval: \[propose_remediation\]/);
   assert.match(kagent, /At most three tool\/reasoning rounds/);
   assert.match(kagent, /apiKeySecret: phase12-gateway-placeholder/);
   assert.doesNotMatch(kagent, /OPENROUTER_API_KEY/);
-  assert.match(bootstrap, /phase10-openrouter/);
+  assert.doesNotMatch(bootstrap, /phase10-openrouter/);
   assert.match(bootstrap, /kagent-crds/);
   assert.match(bootstrap, /providers\.default=openAI/);
   assert.match(bootstrap, /providers\.openAI\.apiKeySecretRef=/);
@@ -122,7 +122,7 @@ test('kagent and Chaos Mesh definitions keep diagnosis bounded and target only T
   assert.match(kagent, /apiVersion: kagent\.dev\/v1alpha2/);
   assert.match(kagent, /kind: ModelConfig[\s\S]*?openAI:\n    baseUrl:/);
   assert.match(kagent, /kind: RemoteMCPServer[\s\S]*?protocol: STREAMABLE_HTTP/);
-  assert.match(kagent, /kind: Agent[\s\S]*?type: Declarative[\s\S]*?modelConfig: phase12-agentgateway-free/);
+  assert.match(kagent, /kind: Agent[\s\S]*?type: Declarative[\s\S]*?modelConfig: phase12-agentgateway-ollama/);
   assert.match(kagent, /declarative:[\s\S]*?a2aConfig:[\s\S]*?skills:/);
   assert.equal((chaos.match(/namespace: chaos-testing/g) || []).length, 2);
   assert.equal((chaos.match(/app: ti-product-api/g) || []).length, 2);

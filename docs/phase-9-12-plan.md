@@ -72,10 +72,9 @@ lnd-peer -> Lightning payment -> lnd-primary
   Aperture-compatible payment backend. This prevents gateway ownership of LND
   credentials.
 - Deploy AgentGateway first as the OpenAI-compatible egress proxy for kagent to
-  OpenRouter, then route the TI purchase path through it as well.
-- OpenRouter is configured as a BYO OpenAI-compatible provider. Its API key is
-  stored in Vault and injected only into AgentGateway. Free models only; model
-  selection is configuration, not hard-coded application logic.
+  the local Ollama `gpt-oss:20b` model, then route the TI purchase path through it as well.
+- The local model needs no provider credential. Phase 10 bootstrap verifies the
+  Docker-host endpoint and narrows gateway egress to that host on port 11434.
 - Before an upstream PR: run the upstream-required formatter, clippy, schema
   validation, focused integration tests, and full relevant test suite.
 
@@ -115,7 +114,7 @@ lnd-peer -> Lightning payment -> lnd-primary
 
 ## Phase 12 — kagent AIOps and controlled chaos
 
-- Use kagent 0.x stable with an OpenRouter free model through AgentGateway.
+- Use kagent 0.x stable with local Ollama `gpt-oss:20b` through AgentGateway.
 - An alert starts a read-only diagnosis with at most three reasoning/tool rounds
   and one concurrent run. Failure becomes `NeedsHuman`.
 - The agent proposes a typed `RemediationRequest`; it cannot act without

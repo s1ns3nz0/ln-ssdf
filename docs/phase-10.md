@@ -6,7 +6,7 @@ created, and no upstream push or pull request is claimed.
 
 ```text
 kagent -> AgentGateway -> phase10 L402 adapter -> Aperture -> TI API
-           /v1 -> OpenRouter             /v1 -> L402-protected endpoints
+           /v1 -> host Ollama gpt-oss:20b /v1 -> L402-protected endpoints
 ```
 
 ## Native policy and adapter boundary
@@ -21,7 +21,7 @@ validates authorized retries.
 The Node adapter remains part of the integration boundary. It permits only the
 configured TI GET paths, proxies L402 challenge and retry headers unchanged,
 adds `x-phase10-correlation-id`, and returns redacted backend failures. It has
-no LND macaroon, seed, preimage, OpenRouter key, or OpenCTI key.
+no LND macaroon, seed, preimage, model provider key, or OpenCTI key.
 
 ## Build and deploy locally
 
@@ -40,17 +40,16 @@ upstream UI. Set
 `AGENTGATEWAY_PHASE10_CHECKOUT` only to use an already prepared equivalent
 checkout. Both Deployments use `imagePullPolicy: Never`.
 
-Bootstrap creates the `phase10-system` namespace, then creates or updates the
-`phase10-openrouter` Secret, and only afterward applies the Phase 10 manifest.
-It reads the authorized root `.env` variable `LLM_MODEL_API` without printing,
-staging, or writing its value to source. The Secret is injected only into the
-AgentGateway container; the adapter receives no provider credential.
+Bootstrap checks that the Docker host's Ollama serves `gpt-oss:20b`, creates
+the `phase10-system` namespace, and applies the Phase 10 manifest. It resolves
+`host.docker.internal` from the kind node and restricts model egress to that
+host's `/32` on port 11434. No `.env` or provider Secret is needed.
 
 The Phase 10 route configuration sends `/v1/` OpenAI-compatible traffic to
-OpenRouter and `/ti/` traffic through native `l402` caveats, rewrites it to
+local Ollama and `/ti/` traffic through native `l402` caveats, rewrites it to
 the adapter's `/v1/` endpoint, and then reaches Aperture at
 `aperture.ssdf-system.svc:8080`. NetworkPolicies permit the adapter-to-Aperture
-path, DNS, and AgentGateway TLS egress to OpenRouter.
+path, DNS, and AgentGateway egress to the Docker host's Ollama port.
 
 ## Verification
 
