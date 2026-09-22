@@ -14,7 +14,7 @@ The original `lnd-primary-0` process retained an old `DB_USERNAME`/`DB_PASSWORD`
 - The same commit adds VSO `rolloutRestartTargets` for `StatefulSet/lnd-primary` and `Deployment/postgres-exporter` in `manifests/phase1/vso-resources.yaml`.
 - `gitops/applications/30-platform.yaml` ignores only VSO's `vso.secrets.hashicorp.com/restartedAt` Pod-template annotation on those workloads and sets `RespectIgnoreDifferences=true`, so Argo CD does not undo the restart. Other drift remains visible.
 - `scripts/phase2-payment-drill.sh` now fails if the running LND role differs from the Secret or is expired in PostgreSQL.
-- `scripts/phase2-db-rotation-drill.sh` is new and not yet committed. It temporarily shortens the live `lnd` role TTL, checks automatic lease renewal extends PostgreSQL expiry, checks max-TTL rotation changes the Secret and restarts LND, restores normal TTL and a one-hour lease, then pays a 1,000-sat invoice. It prints no credential values. `docs/phase-1.md` and `docs/phase-2.md` were updated but are also uncommitted.
+- Commit `70e7148` adds `scripts/phase2-db-rotation-drill.sh`. It temporarily shortens the live `lnd` role TTL, checks automatic lease renewal extends PostgreSQL expiry, checks max-TTL rotation changes the Secret and restarts LND, restores normal TTL and a one-hour lease, then pays a 1,000-sat invoice. It prints no credential values. The same commit updates `docs/phase-1.md` and `docs/phase-2.md`.
 
 ## Evidence obtained
 
@@ -31,7 +31,7 @@ These checks prove the local LND credential path across renewal and rotation, in
 ## Next steps
 
 1. When the OpenRouter free-model daily quota resets, rerun the Phase 12 A2A acceptance and related AIOps gate. Do not purchase credits or change provider/model without user direction.
-2. Run `bash -n`, `shellcheck`, and `git diff --check` on the new drill/docs. Commit only those scoped files after checking the final runtime state; preserve the unrelated edit in `services/evidence-dashboard/model.mjs`. Do not push unless requested.
+2. Preserve the unrelated edit in `services/evidence-dashboard/model.mjs`. The scoped fix and drill are committed locally; do not push unless requested. `bash -n`, ShellCheck on the new drill, `git diff --check`, and the fresh-cluster drill passed. The older scripts have existing ShellCheck SC2016 notices for intentional in-container variable expansion; `shellcheck -e SC2016` passed across the edited shell scripts.
 3. Observe at least one normal one-hour VSO renewal and later max-TTL rotation if claiming long-duration readiness. Inspect the running Pod username, current Secret username, PostgreSQL `rolvaliduntil`, VSO events, and a post-rotation LND RPC/payment. The bounded short-TTL drill already covers the mechanism but not prolonged operation.
 4. Consider removing the network dependency in `charts/lnd/templates/statefulset.yaml`: the `fetch-lndinit` init container downloaded a pinned release archive on each restart and took about a minute on the fresh cluster. This did not fail the drill, but could delay rotation recovery if the release endpoint is unavailable.
 
