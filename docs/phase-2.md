@@ -18,6 +18,24 @@ leases, confirmed that only the current dynamic login remained usable, restarted
 primary lnd, and made both payments again. This credential-rotation check is a
 separate acceptance step from the destructive rebuild script below.
 
+For the long-running VSO lifecycle, set `STATE_DIR` to the absolute Phase 1
+recovery directory outside Git, then run this after Phase 2:
+
+```bash
+scripts/phase2-db-rotation-drill.sh --context kind-ln-ssdf-phase0 \
+  --state-dir "$STATE_DIR"
+```
+
+The drill temporarily gives the Vault `lnd` role a 90-second default and 180-second
+maximum TTL, proves VSO extends PostgreSQL `rolvaliduntil` on renewal, then
+proves a new Secret restarts LND with the new role. It restores the normal
+one-hour/two-hour role TTL, forces a normal lease, and settles a payment after
+the final restart. An exit trap restores the role TTL if the drill fails; check
+the active lease and Pod before relying on the workload after a failed drill.
+The Secret-backed DB environment variables cannot change inside an existing
+Pod. The chart's `lndinit` init container also downloads its pinned release
+archive on every Pod restart, so network availability affects rotation recovery.
+
 `scripts/phase2-rebuild-drill.sh` deletes only the explicit local kind cluster,
 restores the Vault Raft state held in the host recovery directory (including KV
 wallet data, policies, and Kubernetes auth configuration), and creates a fresh
